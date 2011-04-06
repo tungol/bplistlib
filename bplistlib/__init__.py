@@ -29,14 +29,16 @@ Email: scw@gamewood.net
 Copyright: 2007-2008 Starlight Computer Wizardry
 '''
 
+
 from bplistlib import readAnyPlist, readBPlist, readAnyPlistFromString
 from bplistlib import readBPlistFromString, writeBPlist, writeBPlistToString
+
 
 __all__ = ['readAnyPlist', 'readBPlist', 'readAnyPlistFromString',
            'readBPlistFromString', 'writeBPlist', 'writeBPlistToString']
 
 __packages__ = ['bplistlib']
-__version__ = '0.1'
+__version__ = '0.1pre'
 __author__ = 'Stephen Morton'
 __author_email__ = 'tungolcraft@gmail.com'
 __description__ = 'Read and write binary .plist files.'
