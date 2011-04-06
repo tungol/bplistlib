@@ -27,8 +27,6 @@ Email: scw@gamewood.net
 Copyright: 2007-2008 Starlight Computer Wizardry
 '''
 
-# converted from plutil.pl <http://scw.us/iPhone/plutil/>
-
 __licence__ = '''
 Copyright (c) 2011, Stephen Morton
 All rights reserved.
@@ -61,8 +59,7 @@ __version__ = '0.1'
 __author__ = 'Stephen Morton'
 
 __all__ = ['readAnyPlist', 'readBPlist', 'readAnyPlistFromString',
-           'readBPlistFromString', 'writeBPlist', 'writeBPlistToString',
-           'Data']
+           'readBPlistFromString', 'writeBPlist', 'writeBPlistToString']
 
 import cStringIO
 import datetime
@@ -70,62 +67,8 @@ import plistlib
 import struct
 
 
-def readAnyPlist(pathOrFile):
-    didOpen = False
-    if isinstance(pathOrFile, (str, unicode)):
-        pathOrFile = open(pathOrFile)
-        didOpen = True
-    if pathOrFile.read(8) == 'bplist00':
-        rootObject = readBPlist(pathOrFile)
-    else:
-        pathOrFile.seek(0)  # I'm not sure if this is necessary
-        rootObject = plistlib.readPlist(pathOrFile)
-    if didOpen:
-        pathOrFile.close()
-    return rootObject
-
-
-def readAnyPlistFromString(data):
-    if data[:8] == 'bplist00':
-        return readBPlistFromString(data)
-    else:
-        return plistlib.readPlistFromString(data)
-
-
-def readBPlist(pathOrFile):
-    didOpen = False
-    if isinstance(pathOrFile, (str, unicode)):
-        pathOrFile = open(pathOrFile)
-        didOpen = True
-    p = BPlistParser()
-    rootObject = p.parse(pathOrFile)
-    if didOpen:
-        pathOrFile.close()
-    return rootObject
-
-
-def readBPlistFromString(data):
-    return readBPlist(cStringIO.StringIO(data))
-
-
-def writeBPlist(pathOrFile, rootObject):
-    didOpen = 0
-    if isinstance(pathOrFile, (str, unicode)):
-        pathOrFile = open(pathOrFile, "w")
-        didOpen = 1
-    writer = BPlistWriter(pathOrFile)
-    writer.write(rootObject)
-    if didOpen:
-        pathOrFile.close()
-
-
-def writeBPlistToString(rootObject):
-    f = cStringIO.StringIO()
-    writeBPlist(rootObject, f)
-    return f.getvalue()
-
-
 class BPlistParser(object):
+    
     def __init__(self):
         pass
     
@@ -258,6 +201,7 @@ class BPlistParser(object):
     
 
 class BPlistWriter(object):
+    
     def __init__(self, fileobj):
         self.fileobj = fileobj
         self.all_objects = []
@@ -289,14 +233,68 @@ class BPlistWriter(object):
                 flattened_list = []
                 for list_item in item:
                     flattened_list.append(self.all_objects.index(list_item))
-                self.flattened_objects.update{item_index: flattened_list}
+                self.flattened_objects.update({item_index: flattened_list})
             elif type(item) == dict:
                 flattened_dict = {}
-                for key, value in a[:].items():
+                for key, value in item[:].items():
                     key_index = self.all_objects.index(key)
                     value_index = self.all_objects.index(value)
-                    flattened_dict.update{key_index: value_index}
-                self.flattened_objects.update{item_index: flattened_dict}
+                    flattened_dict.update({key_index: value_index})
+                self.flattened_objects.update({item_index: flattened_dict})
         for index, object_ in self.flattened_objects.values():
             self.all_objects[index] = object_
     
+
+def readAnyPlist(pathOrFile):
+    didOpen = False
+    if isinstance(pathOrFile, (str, unicode)):
+        pathOrFile = open(pathOrFile)
+        didOpen = True
+    if pathOrFile.read(8) == 'bplist00':
+        rootObject = readBPlist(pathOrFile)
+    else:
+        pathOrFile.seek(0)  # I'm not sure if this is necessary
+        rootObject = plistlib.readPlist(pathOrFile)
+    if didOpen:
+        pathOrFile.close()
+    return rootObject
+
+
+def readAnyPlistFromString(data):
+    if data[:8] == 'bplist00':
+        return readBPlistFromString(data)
+    else:
+        return plistlib.readPlistFromString(data)
+
+
+def readBPlist(pathOrFile):
+    didOpen = False
+    if isinstance(pathOrFile, (str, unicode)):
+        pathOrFile = open(pathOrFile)
+        didOpen = True
+    p = BPlistParser()
+    rootObject = p.parse(pathOrFile)
+    if didOpen:
+        pathOrFile.close()
+    return rootObject
+
+
+def readBPlistFromString(data):
+    return readBPlist(cStringIO.StringIO(data))
+
+
+def writeBPlist(pathOrFile, rootObject):
+    didOpen = 0
+    if isinstance(pathOrFile, (str, unicode)):
+        pathOrFile = open(pathOrFile, "w")
+        didOpen = 1
+    writer = BPlistWriter(pathOrFile)
+    writer.write(rootObject)
+    if didOpen:
+        pathOrFile.close()
+
+
+def writeBPlistToString(rootObject):
+    f = cStringIO.StringIO()
+    writeBPlist(rootObject, f)
+    return f.getvalue()
