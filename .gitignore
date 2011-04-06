@@ -1,0 +1,10 @@
+# python stuff
+*.pyc
+*.egg-info
+build/
+dist/
+
+# mac stuff
+.DS_Store
+*.tmproj
+
