@@ -3,7 +3,7 @@ All integers are big-endian order.
 The following types are available in a binary plist:
  1. boolean
  2. integer
- 3. real
+ 3. float
  4. date
  5. binary data
  6. string
@@ -36,7 +36,7 @@ The encoding of the available types are as follows:
 the first four bits are an id number of the object type, according to the following mapping:
  0x0 boolean
  0x1 integer
- 0x2 real
+ 0x2 float
  0x3 date
  0x4 binary data
  0x5 string
@@ -53,7 +53,7 @@ If the type is boolean, the object length is actually the value of the object. A
 if the type is integer, the number of bytes is equal to 2 to the power of the object length previously found. Valid object lengths are 0, 1, 2, and 3
 for 1, 2, 4, and 8 byte integers, respectively. The encoding is as a big-endian, signed integer in the appropriate number of bytes.
 
-if the type is real the object length can be 2 or 3, corresponding to a byte length of 4 or 8. The encoding is as a single-precision or a double-precision float, accordingly. Byte order is reversed from IEEE 754.
+if the type is float the object length can be 2 or 3, corresponding to a byte length of 4 or 8. The encoding is as a single-precision or a double-precision float, accordingly. Byte order is reversed from IEEE 754.
 
 if the type is date, the object length can be 3 or 4, corresponding to a byte length of 4 or 8. The value is seconds since the epoch of 1 January 2001, 0:00:00 GMT, encoded as a single or double precision float. Byte order is reversed from IEEE 754.
 
