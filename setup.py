@@ -1,18 +1,21 @@
+#!/usr/bin/env python
+# encoding: utf-8
+
+'''setup.py for bplistlib.'''
+
 from distutils.core import setup
+import bplistlib
 
 setup(
       name = "bplistlib",
-      version = "0.1",
-      author = "Stephen Morton",
-      author_email = "tungolcraft@gmail.com",
-      url = "foo"
-      description = "Read support for binary plist files",
-      classifiers = [
-        'Development Status :: 4 - Beta',
-        'Intended Audience :: End Users/Desktop',
-        'License :: OSI Approved :: BSD License',
-        'Operating System :: OS Independent',
-        'Programming Language :: Python',
-        'Topic :: Software Development :: Libraries :: Python Modules'
-      ]
+      version = bplistlib.__version__,
+      packages = ['bplistlib'],
+      author = bplistlib.__author__,
+      author_email = bplistlib.__author_email__,
+      description = bplistlib.__description__,
+      license = bplistlib.__license__,
+      long_description = bplistlib.__doc__,
+      platforms='any',
+      url = bplistlib.__url__,
+      classifiers = bplistlib.__classifiers__
 )
