@@ -1,21 +1,19 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-'''setup.py for bplistlib.'''
-
 from distutils.core import setup
-import bplistlib
+import bplistlib as package
 
 setup(
-      name = "bplistlib",
-      version = bplistlib.__version__,
-      packages = ['bplistlib'],
-      author = bplistlib.__author__,
-      author_email = bplistlib.__author_email__,
-      description = bplistlib.__description__,
-      license = bplistlib.__license__,
-      long_description = bplistlib.__doc__,
-      platforms='any',
-      url = bplistlib.__url__,
-      classifiers = bplistlib.__classifiers__
+      name = package.__name__,
+      version = package.__version__,
+      packages = package.__packages__,
+      author = package.__author__,
+      author_email = package.__author_email__,
+      description = package.__description__,
+      license = package.__license__,
+      long_description = package.__doc__,
+      platforms=package.__platforms__,
+      url = package.__url__,
+      classifiers = package.__classifiers__
 )

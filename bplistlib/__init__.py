@@ -35,11 +35,13 @@ from bplistlib import readBPlistFromString, writeBPlist, writeBPlistToString
 __all__ = ['readAnyPlist', 'readBPlist', 'readAnyPlistFromString',
            'readBPlistFromString', 'writeBPlist', 'writeBPlistToString']
 
+__packages__ = ['bplistlib']
 __version__ = '0.1'
 __author__ = 'Stephen Morton'
 __author_email__ = 'tungolcraft@gmail.com'
 __description__ = 'Read and write binary .plist files.'
 __license__ = 'BSD'
+__platforms__ = 'any'
 __url__ = 'https://github.com/tungolcraft/bplistlib'
 __classifiers__ = [
   'Development Status :: 4 - Beta',
