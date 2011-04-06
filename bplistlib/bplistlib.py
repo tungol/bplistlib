@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+# encoding: utf-8
 '''
 bplistlib -- read binary .plist files. No write support.
 
@@ -32,6 +34,7 @@ import cStringIO
 import datetime
 import plistlib
 import struct
+from time import mktime
 
 
 class BPlistParser(object):
@@ -173,6 +176,7 @@ class BPlistWriter(object):
         self.fileobj = fileobj
         self.all_objects = []
         self.flattened_objects = {}
+        self.lengths = []
     
     def write(self, root_object):
         self.collect_all_objects(root_object)
@@ -210,6 +214,60 @@ class BPlistWriter(object):
                 self.flattened_objects.update({item_index: flattened_dict})
         for index, object_ in self.flattened_objects.values():
             self.all_objects[index] = object_
+    
+    def set_lengths(self):
+        lookup_table = {
+                        bool: self.get_boolean_length,
+                        None: self.get_boolean_length,
+                        int: self.get_integer_length,
+                        float: self.get_real_length,
+                        datetime: self.get_date_length,
+                        plistlib.Data: self.get_data_length,
+                        str: self.get_string_length,
+                        unicode: self.get_unicode_length,
+                        list: self.get_array_length,
+                        dict: self.get_dictionary_length,
+        }
+        for object_ in enumerate(self.all_objects):
+            get_length = lookup_table[type(object_)]
+            self.lengths.append(get_length(object_))
+    
+    def get_boolean_length(self, boolean):
+        if boolean is None:
+            return 0
+        elif boolean is False:
+            return 8
+        elif boolean is True:
+            return 9
+        else:
+            raise ValueError
+    
+    def get_integer_length(self, integer):
+        bit_lengths = [8 * (2 ** x - 1) for x in range(4)]
+        limits = [2 ** bit_length - 1 for bit_length in bit_lengths]
+        for index, limit in limits:
+            if -limit <= integer < limit:
+                return index
+        raise ValueError
+    
+    def get_float_length(self, float_):
+        single_max = (2 - 2 ** (-23)) * (2 ** 127)
+        single_min = 2 ** -126
+        double_max = (2 - 2 ** (-52)) * (2 ** 1023)
+        double_min = 2 ** -1022
+        if (-single_max < float_ < single_min and
+            single_min < float_ < single_max):
+            return 2
+        elif (-double_max < float_ < double_min and
+              double_min < float_ < double_max):
+            return 3
+        raise ValueError
+    
+    def get_date_length(self, date):
+        seconds = mktime(date.timetuple())
+        epoch_adjustment = 978307200.0
+        seconds -= epoch_adjustment
+        return self.get_float_length(seconds)
     
 
 def readAnyPlist(pathOrFile):
