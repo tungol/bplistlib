@@ -8,8 +8,8 @@ Functions:
 These two functions are analagous to the readPlist and readPlistFromString
 functions available in plistlib:
 
-readBPlist
-readBPlistFromString
+readBinaryPlist
+readBinaryPlistFromString
 
 These two functions can discriminate between an XML plist file and a binary
 plist file, and run the appropriate functions to parse that file:
@@ -37,36 +37,36 @@ import struct
 from time import mktime
 
 
-class BPlistParser(object):
+class BinaryPlistParser(object):
     '''
     A parser object for binary plist files. Initialize, then parse an open
     file object.
     '''
-    def __init__(self, fileobj):
+    def __init__(self, file_object):
         '''Parse an open file object. Seeking needs to be supported.'''
-        self.fileobj = fileobj
+        self.file_object = file_object
         
-        self.fileobj.seek(-32, 2)
-        trailer = struct.unpack('>6xBB4xL4xL4xL', self.fileobj.read())
+        self.file_object.seek(-32, 2)
+        trailer = struct.unpack('>6xBB4xL4xL4xL', self.file_object.read())
         offset_size = trailer[0]
-        self.obj_ref_size = trailer[1]
-        num_objects = trailer[2]
-        top_object = trailer[3]
-        table_offset = trailer[4]
+        self.object_reference_size = trailer[1]
+        number_of_objects = trailer[2]
+        root_object = trailer[3]
+        reference_table_offset = trailer[4]
         
-        self.offset_table = []
-        table_fmts = (None, 'B', '>H', 'BBB', '>L')
-        self.fileobj.seek(table_offset)
-        for i in range(num_objects):
-            offset = struct.unpack(table_fmts[offset_size],
-                                   self.fileobj.read(offset_size))
+        self.reference_table = []
+        formats = (None, 'B', '>H', 'BBB', '>L')
+        self.file_object.seek(reference_table_offset)
+        for i in range(number_of_objects):
+            offset = struct.unpack(formats[offset_size],
+                                   self.file_object.read(offset_size))
             if offset_size == 3:
                 offset = offset[0] * 0x100 + offset[1] * 0x10 + offset[2]
             else:
                 offset = offset[0]
-            self.offset_table.append(offset)
+            self.reference_table.append(offset)
         
-        self.fileobj.seek(self.offset_table[top_object])
+        self.file_object.seek(self.reference_table[root_object])
     
     def parse(self):
         '''Return the parsed root object.'''
@@ -79,10 +79,10 @@ class BPlistParser(object):
         type_parser = (
                        self.parse_boolean,
                        self.parse_int,
-                       self.parse_real,
+                       self.parse_float,
                        self.parse_date,
                        self.parse_binary_data,
-                       self.parse_byte_string,
+                       self.parse_string,
                        self.parse_unicode_string,
                        None,
                        None,
@@ -92,123 +92,123 @@ class BPlistParser(object):
                        None,
                        self.parse_dictionary,
         )
-        value = struct.unpack('B', self.fileobj.read(1))[0]
-        obj_type = value >> 4
-        obj_len = value & 0xF
-        if ((obj_type != 0) and (obj_len == 15)):
-            obj_len = self.parse_object()
-        return type_parser[obj_type](obj_len)
+        value = struct.unpack('B', self.file_object.read(1))[0]
+        object_type = value >> 4
+        object_length = value & 0xF
+        if ((object_type != 0) and (object_length == 15)):
+            object_length = self.parse_object()
+        return type_parser[object_type](object_length)
     
-    def parse_boolean(self, obj_len):
+    def parse_boolean(self, object_length):
         '''Parse an encoded boolean from a binary plist.'''
-        if obj_len == 0:
+        if object_length == 0:
             return None
-        elif obj_len == 8:
+        elif object_length == 8:
             return False
-        elif obj_len == 9:
+        elif object_length == 9:
             return True
         else:
             raise ValueError("Unknown Boolean")
     
-    def parse_int(self, obj_len):
+    def parse_int(self, object_length):
         '''Read out and parse an encoded integer from a binary plist.'''
-        raw = self.fileobj.read(1 << obj_len)
-        packs = ('b', '>h', '>l', '>q')
-        return struct.unpack(packs[obj_len], raw)[0]
+        raw = self.file_object.read(1 << object_length)
+        formats = ('b', '>h', '>l', '>q')
+        return struct.unpack(formats[object_length], raw)[0]
     
-    def parse_real(self, obj_len):
+    def parse_float(self, object_length):
         '''Read out and parse an encoded float from a binary plist.'''
-        raw = self.fileobj.read(1 << obj_len)
-        packs = (None, None, 'f', 'd')
-        return struct.unpack(packs[obj_len], raw[::-1])[0]
+        raw = self.file_object.read(1 << object_length)
+        formats = (None, None, 'f', 'd')
+        return struct.unpack(formats[object_length], raw[::-1])[0]
     
-    def parse_date(self, obj_len):
+    def parse_date(self, object_length):
         '''Read out and parse an encoded date from a binary plist'''
         # seconds since 1 January 2001, 0:00:00.0
-        raw = self.fileobj.read(1 << obj_len)
-        packs = (None, None, 'f', 'd')
-        seconds = struct.unpack(packs[obj_len], raw[::-1])[0]
+        raw = self.file_object.read(1 << object_length)
+        formats = (None, None, 'f', 'd')
+        seconds = struct.unpack(formats[object_length], raw[::-1])[0]
         epoch_adjustment = 978307200.0
         seconds += epoch_adjustment
         return datetime.fromtimestamp(seconds)
     
-    def parse_binary_data(self, obj_len):
+    def parse_binary_data(self, object_length):
         '''
         Read out binary data from a binary plist. No parsing is performed.
         '''
-        return plistlib.Data(self.fileobj.read(obj_len))
+        return plistlib.Data(self.file_object.read(object_length))
     
-    def parse_byte_string(self, obj_len):
+    def parse_string(self, object_length):
         '''
         Read out a encoded string from a binary plist. No parsing is performed,
         it should be ascii.
         '''
-        raw = self.fileobj.read(obj_len)
+        raw = self.file_object.read(object_length)
         return raw
     
-    def parse_unicode_string(self, obj_len):
+    def parse_unicode_string(self, object_length):
         '''
         Read out and parse an encoded unicode string from a binary plist. The
         data is parsed as big-endian utf-16.
         '''
-        raw = self.fileobj.read(obj_len * 2)
+        raw = self.file_object.read(object_length * 2)
         return raw.decode('utf_16_be')
     
-    def parse_array(self, obj_len):
+    def parse_array(self, object_length):
         '''
         Read out and parse an encoded array from a binary plist. Objects within
         the array are recursively parsed as well.
         '''
         object_offsets = []
-        packs = (None, 'B', '>H')
-        for i in range(obj_len):
-            obj_num = struct.unpack(packs[self.obj_ref_size],
-                                    self.fileobj.read(self.obj_ref_size))[0]
-            object_offsets.append(self.offset_table[obj_num])
+        formats = (None, 'B', '>H')
+        for i in range(object_length):
+            object_number = struct.unpack(formats[self.object_reference_size],
+                                    self.file_object.read(self.object_reference_size))[0]
+            object_offsets.append(self.reference_table[object_number])
         array = []
         for offset in object_offsets:
-            self.fileobj.seek(offset)
+            self.file_object.seek(offset)
             obj = self.parse_object()
             array.append(obj)
         return array
     
-    def parse_dictionary(self, obj_len):
+    def parse_dictionary(self, object_length):
         '''
         Read out and parse an encoded dictionary from a binary plist.
         Objects inside the dictionary are recursively parsed as well.
         '''
         key_offsets = []
-        packs = (None, 'B', '>H')
-        for i in range(obj_len):
-            obj_num = struct.unpack(packs[self.obj_ref_size],
-                                    self.fileobj.read(self.obj_ref_size))[0]
-            key_offsets.append(self.offset_table[obj_num])
+        formats = (None, 'B', '>H')
+        for i in range(object_length):
+            object_number = struct.unpack(formats[self.object_reference_size],
+                                    self.file_object.read(self.object_reference_size))[0]
+            key_offsets.append(self.reference_table[object_number])
         value_offsets = []
-        for i in range(obj_len):
-            obj_num = struct.unpack(packs[self.obj_ref_size],
-                                    self.fileobj.read(self.obj_ref_size))[0]
-            value_offsets.append(self.offset_table[obj_num])
+        for i in range(object_length):
+            object_number = struct.unpack(formats[self.object_reference_size],
+                                    self.file_object.read(self.object_reference_size))[0]
+            value_offsets.append(self.reference_table[object_number])
         mydict = {}
         for key_offset, value_offset in zip(key_offsets, value_offsets):
-            self.fileobj.seek(key_offset)
+            self.file_object.seek(key_offset)
             key = self.parse_object()
-            self.fileobj.seek(value_offset)
+            self.file_object.seek(value_offset)
             value = self.parse_object()
             mydict.update({key: value})
         return mydict
     
 
-class BPlistWriter(object):
+class BinaryPlistWriter(object):
     '''
     A writer object for binary plist files. Initialize with an open file
     object, then write the root object to that file.
     '''
-    def __init__(self, fileobj):
+    def __init__(self, file_object):
         '''
         Keep track of the file object, plus some lists that will be needed
         later.
         '''
-        self.fileobj = fileobj
+        self.file_object = file_object
         self.all_objects = []
         self.flattened_objects = {}
         self.offsets = []
@@ -221,11 +221,11 @@ class BPlistWriter(object):
         self.collect_all_objects(root_object)
         self.flatten()
         self.set_reference_size()
-        self.fileobj.write('bplist00')
+        self.file_object.write('bplist00')
         for object_ in self.all_objects:
-            self.fileobj.write(self.encode(object_))
-        self.fileobj.write(self.build_reference_table())
-        self.fileobj.write(self.build_trailer())
+            self.file_object.write(self.encode(object_))
+        self.file_object.write(self.build_reference_table())
+        self.file_object.write(self.build_trailer())
     
     def collect_all_objects(self, object_):
         '''
@@ -329,7 +329,7 @@ class BPlistWriter(object):
         '''Return the object length for an ascii string.'''
         return len(string)
     
-    def get_unicode_length(self, unicode_):
+    def get_unicode_string_length(self, unicode_):
         '''Return the object length for a unicode string.'''
         return len(unicode_)
     
@@ -364,12 +364,12 @@ class BPlistWriter(object):
                             datetime: self.encode_date,
                             type(plistlib.Data('')): self.encode_data,
                             str: self.encode_string,
-                            unicode: self.encode_unicode,
+                            unicode: self.encode_unicode_string,
                             list: self.encode_array,
                             dict: self.encode_dictionary,
         }
         encode_object = encode_functions[type(object_)]
-        self.offsets.append(self.fileobj.tell())
+        self.offsets.append(self.file_object.tell())
         return encode_object(object_)
     
     def encode_type_length(self, type_number, length):
@@ -397,31 +397,31 @@ class BPlistWriter(object):
     def encode_integer(self, integer):
         '''Return an encoded integer.'''
         type_number = 1
-        packs = ('b', '>h', '>l', '>q')
+        formats = ('b', '>h', '>l', '>q')
         length = self.get_integer_length(integer)
         type_length = self.encode_type_length(type_number, length)
-        body = struct.pack(packs[length], integer)
+        body = struct.pack(formats[length], integer)
         return ''.join((type_length, body))
     
     def encode_float(self, float_):
         '''Return an encoded float.'''
         type_number = 2
-        packs = (None, None, 'f', 'd')
+        formats = (None, None, 'f', 'd')
         length = self.get_float_length(float_)
         type_length = self.encode_type_length(type_number, length)
-        body = struct.pack(packs[length], float_)
+        body = struct.pack(formats[length], float_)
         return ''.join((type_length, body[::-1]))
     
     def encode_date(self, date):
         '''Return an encoded date.'''
         type_number = 3
-        packs = (None, None, 'f', 'd')
+        formats = (None, None, 'f', 'd')
         epoch_adjustment = 978307200.0
         seconds = mktime(date.timetuple())
         seconds -= epoch_adjustment
         length = self.get_date_length(seconds)
         type_length = self.encode_type_length(type_number, length)
-        body = struct.pack(packs[length], seconds)
+        body = struct.pack(formats[length], seconds)
         return ''.join((type_length, body[::-1]))
     
     def encode_data(self, data):
@@ -440,10 +440,10 @@ class BPlistWriter(object):
         body = string.encode('ascii')
         return ''.join((type_length, body))
     
-    def encode_unicode(self, unicode_):
+    def encode_unicode_string(self, unicode_):
         '''Return an encoded unicode string.'''
         type_number = 6
-        length = self.get_unicode_length(unicode_)
+        length = self.get_unicode_string_length(unicode_)
         type_length = self.encode_type_length(type_number, length)
         body = unicode_.encode('utf_16_be')
         return ''.join((type_length, body))
@@ -472,10 +472,10 @@ class BPlistWriter(object):
         Return an encoded list of reference values. Used in encoding arrays and
         dictionaries.
         '''
-        packs = (None, 'B', '>H')
+        formats = (None, 'B', '>H')
         encoded_references = []
         for reference in references:
-            encoded_reference = struct.pack(packs[self.reference_size],
+            encoded_reference = struct.pack(formats[self.reference_size],
                                             reference)
             encoded_references.append(encoded_reference)
         return encoded_references
@@ -495,7 +495,7 @@ class BPlistWriter(object):
     
     def build_reference_table(self):
         '''Return the encoded reference table.'''
-        self.reference_table_offset = self.fileobj.tell()
+        self.reference_table_offset = self.file_object.tell()
         self.set_offset_size()
         formats = (None, 'B', '>H', 'BBB', '>L')
         encoded_table = []
@@ -518,78 +518,78 @@ class BPlistWriter(object):
                             root_object, self.reference_table_offset)
     
 
-def readAnyPlist(pathOrFile):
+def read_any_plist(path_or_file):
     '''
     Detect if a given path or file object represents a binary plist file or an
     xml plist file. Call the appropriate function to read the type of plist
     found and return the parsed root object.
     '''
-    didOpen = False
-    if isinstance(pathOrFile, (str, unicode)):
-        pathOrFile = open(pathOrFile)
-        didOpen = True
-    if pathOrFile.read(8) == 'bplist00':
-        rootObject = readBPlist(pathOrFile)
+    did_open = False
+    if isinstance(path_or_file, (str, unicode)):
+        path_or_file = open(path_or_file)
+        did_open = True
+    if path_or_file.read(8) == 'bplist00':
+        root_object = read_binary_plist(path_or_file)
     else:
-        pathOrFile.seek(0)  # I'm not sure if this is necessary
-        rootObject = plistlib.readPlist(pathOrFile)
-    if didOpen:
-        pathOrFile.close()
-    return rootObject
+        path_or_file.seek(0)  # I'm not sure if this is necessary
+        root_object = plistlib.readPlist(path_or_file)
+    if did_open:
+        path_or_file.close()
+    return root_object
 
 
-def readAnyPlistFromString(data):
+def read_any_plist_from_string(data):
     '''
     Detect if a given string represents a binary plist or an xml plist. Call
     the appropriate function to parse the string and return the result.
     '''
     if data[:8] == 'bplist00':
-        return readBPlistFromString(data)
+        return read_binary_plist_from_string(data)
     else:
         return plistlib.readPlistFromString(data)
 
 
-def readBPlist(pathOrFile):
+def read_binary_plist(path_or_file):
     '''
     Parse a binary plist from a path or file object, and return the root
     object.
     '''
-    didOpen = False
-    if isinstance(pathOrFile, (str, unicode)):
-        pathOrFile = open(pathOrFile)
-        didOpen = True
-    p = BPlistParser(pathOrFile)
-    rootObject = p.parse()
-    if didOpen:
-        pathOrFile.close()
-    return rootObject
+    did_open = False
+    if isinstance(path_or_file, (str, unicode)):
+        path_or_file = open(path_or_file)
+        did_open = True
+    p = BinaryPlistParser(path_or_file)
+    root_object = p.parse()
+    if did_open:
+        path_or_file.close()
+    return root_object
 
 
-def readBPlistFromString(data):
+def read_binary_plist_from_string(data):
     '''Parse a binary plist from a string and return the root object.'''
-    return readBPlist(cStringIO.StringIO(data))
+    return read_binary_plist(cStringIO.StringIO(data))
 
 
-def writeBPlist(pathOrFile, rootObject):
+def write_binary_plist(path_or_file, root_object):
     '''
     Write a binary plist representation of the root object to the path or
     file object given.
     '''
-    didOpen = 0
-    if isinstance(pathOrFile, (str, unicode)):
-        pathOrFile = open(pathOrFile, "w")
-        didOpen = 1
-    writer = BPlistWriter(pathOrFile)
-    writer.write(rootObject)
-    if didOpen:
-        pathOrFile.close()
+    did_open = False
+    if isinstance(path_or_file, (str, unicode)):
+        path_or_file = open(path_or_file, "w")
+        did_open = True
+    writer = BinaryPlistWriter(path_or_file)
+    writer.write(root_object)
+    if did_open:
+        path_or_file.close()
 
 
-def writeBPlistToString(rootObject):
+def write_binary_plist_to_string(root_object):
     '''
     Encode the given root object as a binary plist and return a string of the
     encoding.
     '''
     f = cStringIO.StringIO()
-    writeBPlist(f, rootObject)
+    write_binary_plist(f, root_object)
     return f.getvalue()
