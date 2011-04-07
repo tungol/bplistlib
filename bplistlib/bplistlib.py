@@ -176,6 +176,7 @@ class BPlistWriter(object):
         self.fileobj = fileobj
         self.all_objects = []
         self.flattened_objects = {}
+        self.offsets = []
     
     def write(self, root_object):
         self.collect_all_objects(root_object)
@@ -286,6 +287,7 @@ class BPlistWriter(object):
                             dict: self.encode_dictionary,
         }
         encode_object = encode_functions[type(object_)]
+        self.offsets.append(self.fileobj.tell())
         return encode_object(object_)
     
     def encode_type_length(self, type_number, length):
@@ -362,14 +364,40 @@ class BPlistWriter(object):
         encoded_dictionary += self.encode_reference_list(dictionary.values())
         return ''.join(encoded_dictionary)
     
-    def encode_reference_list(self, references):
+    def encode_reference_list(self, references, size):
         packs = (None, 'B', '>H')
         encoded_references = []
         for reference in references:
-            encoded_reference = struct.pack(packs[self.object_reference_size],
+            encoded_reference = struct.pack(packs[self.reference_size],
                                             reference)
             encoded_references.append(encoded_reference)
         return encoded_references
+    
+    def get_offset_size(self):
+        if 0 <= self.reference_table_offset < 0x100:
+            return 1
+        elif 0x100 <= self.reference_table_offset < 0x10000:
+            return 2
+        elif 0x10000 <= self.reference_table_offset < 0x1000000:
+            return 3
+        elif 0x1000000 <= self.reference_table_offset < 0x100000000:
+            return 4
+        raise ValueError
+    
+    def build_reference_table(self):
+        self.reference_table_offset = self.fileobj.tell()
+        offset_size = self.get_offset_size()
+        formats = (None, 'B', '>H', 'BBB', '>L')
+        encoded_table = []
+        for offset in self.offsets:
+            if offset_size == 3:
+                first = offset // 0x100
+                second = (offset % 0x100) // 0x10
+                third = (offset % 0x100) % 0x10
+                offset = (first, second, third)
+            encoded_offset = struct.pack(formats[offset_size], offset)
+            encoded_table.append(encoded_offset)
+        return ''.join(encoded_table)
     
 
 def readAnyPlist(pathOrFile):
