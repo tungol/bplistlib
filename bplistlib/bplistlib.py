@@ -334,7 +334,7 @@ class BPlistWriter(object):
         length = self.get_float_length(float_)
         type_length = self.encode_type_length(type_number, length)
         body = struct.pack(packs[length], float_)
-        return ''.join((type_length, body))
+        return ''.join((type_length, body[::-1]))
     
     def encode_date(self, date):
         type_number = 3
@@ -345,7 +345,7 @@ class BPlistWriter(object):
         length = self.get_date_length(seconds)
         type_length = self.encode_type_length(type_number, length)
         body = struct.pack(packs[length], seconds)
-        return ''.join((type_length, body))
+        return ''.join((type_length, body[::-1]))
     
     def encode_data(self, data):
         type_number = 4
