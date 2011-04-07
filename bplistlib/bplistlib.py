@@ -312,7 +312,7 @@ class BPlistWriter(object):
         value = (type_number << 4) + length
         encoded = struct.pack('B', value)
         if big:
-            return ''.join(encoded, real_length)
+            return ''.join((encoded, real_length))
         return encoded
     
     def encode_boolean(self, boolean):
@@ -342,7 +342,7 @@ class BPlistWriter(object):
         epoch_adjustment = 978307200.0
         seconds = mktime(date.timetuple())
         seconds -= epoch_adjustment
-        length = self.get_date_length(date)
+        length = self.get_date_length(seconds)
         type_length = self.encode_type_length(type_number, length)
         body = struct.pack(packs[length], seconds)
         return ''.join((type_length, body))
