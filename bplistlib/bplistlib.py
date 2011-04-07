@@ -251,10 +251,10 @@ class BPlistWriter(object):
         single_min = 2 ** -126
         double_max = (2 - 2 ** (-52)) * (2 ** 1023)
         double_min = 2 ** -1022
-        if (-single_max < float_ < single_min and
+        if (-single_max < float_ < single_min or
             single_min < float_ < single_max):
             return 2
-        elif (-double_max < float_ < double_min and
+        elif (-double_max < float_ < double_min or
               double_min < float_ < double_max):
             return 3
         raise ValueError
@@ -293,7 +293,7 @@ class BPlistWriter(object):
                             int: self.encode_integer,
                             float: self.encode_float,
                             datetime: self.encode_date,
-                            plistlib.Data: self.encode_data,
+                            type(plistlib.Data('')): self.encode_data,
                             str: self.encode_string,
                             unicode: self.encode_unicode,
                             list: self.encode_array,
