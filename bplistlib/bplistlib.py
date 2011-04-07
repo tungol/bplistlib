@@ -189,7 +189,13 @@ class BPlistWriter(object):
         self.fileobj.write(self.build_trailer())
     
     def collect_all_objects(self, object_):
-        if object_ not in self.all_objects:
+        found = False
+        for comparison_object in self.all_objects:
+            if (type(object_) == type(comparison_object) and
+                object_ == comparison_object):
+                found = True
+                break
+        if not found:
             self.all_objects.append(object_)
         if type(object_) == list:
             for item in list:
@@ -198,18 +204,25 @@ class BPlistWriter(object):
             for item in object_.keys() + object_.values():
                 self.collect_all_objects(item)
     
+    def find_in_all_objects(self, object_):
+        for index, comparison_object in enumerate(self.all_objects):
+            if (type(object_) == type(comparison_object) and
+                object_ == comparison_object):
+                return index
+        return ValueError
+    
     def flatten(self):
         for item_index, item in enumerate(self.all_objects):
             if type(item) == list:
                 flattened_list = []
                 for list_item in item:
-                    flattened_list.append(self.all_objects.index(list_item))
+                    flattened_list.append(self.find_in_all_objects(list_item))
                 self.flattened_objects.update({item_index: flattened_list})
             elif type(item) == dict:
                 flattened_dict = {}
                 for key, value in item.items():
-                    key_index = self.all_objects.index(key)
-                    value_index = self.all_objects.index(value)
+                    key_index = self.find_in_all_objects(key)
+                    value_index = self.find_in_all_objects(value)
                     flattened_dict.update({key_index: value_index})
                 self.flattened_objects.update({item_index: flattened_dict})
         for index, object_ in self.flattened_objects.items():
@@ -276,7 +289,7 @@ class BPlistWriter(object):
     def encode(self, object_):
         encode_functions = {
                             bool: self.encode_boolean,
-                            None: self.encode_boolean,
+                            type(None): self.encode_boolean,
                             int: self.encode_integer,
                             float: self.encode_float,
                             datetime: self.encode_date,
@@ -352,7 +365,7 @@ class BPlistWriter(object):
         type_number = 6
         length = self.get_unicode_length(unicode_)
         type_length = self.encode_type_length(type_number, length)
-        body = unicode_.encode('utf16-be')
+        body = unicode_.encode('utf_16_be')
         return ''.join((type_length, body))
     
     def encode_array(self, array):
