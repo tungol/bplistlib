@@ -291,8 +291,16 @@ class BPlistWriter(object):
         return encode_object(object_)
     
     def encode_type_length(self, type_number, length):
-        value = type_number << 4 + length
-        return struct.pack('B', value)
+        big = False
+        if length >= 15:
+            real_length = self.encode_integer(length)
+            length = 15
+            big = True
+        value = (type_number << 4) + length
+        encoded = struct.pack('B', value)
+        if big:
+            return ''.join(encoded, real_length)
+        return encoded
     
     def encode_boolean(self, boolean):
         type_number = 0
