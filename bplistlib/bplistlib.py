@@ -196,14 +196,22 @@ class BPlistParser(object):
     
 
 class BPlistWriter(object):
-    
+    '''
+    A writer object for binary plist files. Initialize with an open file
+    object, then write the root object to that file.
+    '''
     def __init__(self, fileobj):
+        '''
+        Keep track of the file object, plus some lists that will be needed
+        later.
+        '''
         self.fileobj = fileobj
         self.all_objects = []
         self.flattened_objects = {}
         self.offsets = []
     
     def write(self, root_object):
+        '''Write the root_object to self.file_object.'''
         self.collect_all_objects(root_object)
         self.flatten()
         self.set_reference_size()
@@ -214,6 +222,11 @@ class BPlistWriter(object):
         self.fileobj.write(self.build_trailer())
     
     def collect_all_objects(self, object_):
+        '''
+        Build self.all_objects by recursively walking the tree of objects and
+        collecting all unique objects found. An object is unique if no other
+        object already in self.all_objects matches it in equality and type.
+        '''
         found = False
         for comparison_object in self.all_objects:
             if (type(object_) == type(comparison_object) and
@@ -230,6 +243,10 @@ class BPlistWriter(object):
                 self.collect_all_objects(item)
     
     def find_in_all_objects(self, object_):
+        '''
+        Find an object in self.all_objects, matching equality and type, and
+        return the index it was found at. If not found, raise ValueError.
+        '''
         for index, comparison_object in enumerate(self.all_objects):
             if (type(object_) == type(comparison_object) and
                 object_ == comparison_object):
@@ -237,6 +254,10 @@ class BPlistWriter(object):
         return ValueError
     
     def flatten(self):
+        '''
+        Take all dictionaries and arrays in self.all_objects and replace each
+        child object with the index of that child object in self.all_objects.
+        '''
         for item_index, item in enumerate(self.all_objects):
             if type(item) == list:
                 flattened_list = []
@@ -254,6 +275,7 @@ class BPlistWriter(object):
             self.all_objects[index] = object_
     
     def get_boolean_length(self, boolean):
+        '''Return the object length for a boolean.'''
         if boolean is None:
             return 0
         elif boolean is False:
@@ -264,6 +286,7 @@ class BPlistWriter(object):
             raise ValueError
     
     def get_integer_length(self, integer):
+        '''Return the object length for an integer.'''
         bit_lengths = [8 * 2 ** x for x in range(4)]
         limits = [2 ** (bit_length - 1) for bit_length in bit_lengths]
         for index, limit in enumerate(limits):
@@ -272,6 +295,7 @@ class BPlistWriter(object):
         raise ValueError
     
     def get_float_length(self, float_):
+        '''Return the object length for a float.'''
         single_max = (2 - 2 ** (-23)) * (2 ** 127)
         single_min = 2 ** -126
         double_max = (2 - 2 ** (-52)) * (2 ** 1023)
@@ -285,24 +309,37 @@ class BPlistWriter(object):
         raise ValueError
     
     def get_date_length(self, seconds):
+        '''
+        Return the object length for a date already converted to seconds since
+        the epoch.
+        '''
         return self.get_float_length(seconds)
     
     def get_data_length(self, data):
+        '''Return the object length for uninterpreted binary data.'''
         return len(data.data)
     
     def get_string_length(self, string):
+        '''Return the object length for an ascii string.'''
         return len(string)
     
     def get_unicode_length(self, unicode_):
+        '''Return the object length for a unicode string.'''
         return len(unicode_)
     
     def get_array_length(self, array):
+        '''Return the object length for an array.'''
         return len(array)
     
     def get_dictionary_length(self, dictionary):
+        '''Return the object length for a dictionary.'''
         return len(dictionary)
     
     def set_reference_size(self):
+        '''
+        Set self.reference size by finding the minimum needed to fit all the
+        objects in self.all_objects.
+        '''
         number_of_objects = len(self.all_objects)
         if 0 <= number_of_objects < 256:
             self.reference_size = 1
@@ -312,6 +349,7 @@ class BPlistWriter(object):
             raise ValueError
     
     def encode(self, object_):
+        '''Return the encoded form of an object.'''
         encode_functions = {
                             bool: self.encode_boolean,
                             type(None): self.encode_boolean,
@@ -329,6 +367,10 @@ class BPlistWriter(object):
         return encode_object(object_)
     
     def encode_type_length(self, type_number, length):
+        '''
+        Encode the first byte (or bytes if length is greater than 14) of a an
+        encoded object. This encodes the type and length of the object.
+        '''
         big = False
         if length >= 15:
             real_length = self.encode_integer(length)
@@ -341,11 +383,13 @@ class BPlistWriter(object):
         return encoded
     
     def encode_boolean(self, boolean):
+        '''Return an encoded boolean value.'''
         type_number = 0
         length = self.get_boolean_length(boolean)
         return self.encode_type_length(type_number, length)
     
     def encode_integer(self, integer):
+        '''Return an encoded integer.'''
         type_number = 1
         packs = ('b', '>h', '>l', '>q')
         length = self.get_integer_length(integer)
@@ -354,6 +398,7 @@ class BPlistWriter(object):
         return ''.join((type_length, body))
     
     def encode_float(self, float_):
+        '''Return an encoded float.'''
         type_number = 2
         packs = (None, None, 'f', 'd')
         length = self.get_float_length(float_)
@@ -362,6 +407,7 @@ class BPlistWriter(object):
         return ''.join((type_length, body[::-1]))
     
     def encode_date(self, date):
+        '''Return an encoded date.'''
         type_number = 3
         packs = (None, None, 'f', 'd')
         epoch_adjustment = 978307200.0
@@ -373,6 +419,7 @@ class BPlistWriter(object):
         return ''.join((type_length, body[::-1]))
     
     def encode_data(self, data):
+        '''Return encoded binary data.'''
         type_number = 4
         length = self.get_data_length(data)
         type_length = self.encode_type_length(type_number, length)
@@ -380,6 +427,7 @@ class BPlistWriter(object):
         return ''.join((type_length, body))
     
     def encode_string(self, string):
+        '''Return an encoded string.'''
         type_number = 5
         length = self.get_string_length(string)
         type_length = self.encode_type_length(type_number, length)
@@ -387,6 +435,7 @@ class BPlistWriter(object):
         return ''.join((type_length, body))
     
     def encode_unicode(self, unicode_):
+        '''Return an encoded unicode string.'''
         type_number = 6
         length = self.get_unicode_length(unicode_)
         type_length = self.encode_type_length(type_number, length)
@@ -394,6 +443,7 @@ class BPlistWriter(object):
         return ''.join((type_length, body))
     
     def encode_array(self, array):
+        '''Return an encoded array.'''
         type_number = 0xa
         length = self.get_array_length(array)
         type_length = self.encode_type_length(type_number, length)
@@ -402,6 +452,7 @@ class BPlistWriter(object):
         return ''.join(encoded_array)
     
     def encode_dictionary(self, dictionary):
+        '''Return an encoded dictionary.'''
         type_number = 0xd
         length = self.get_dictionary_length(dictionary)
         type_length = self.encode_type_length(type_number, length)
@@ -411,6 +462,10 @@ class BPlistWriter(object):
         return ''.join(encoded_dictionary)
     
     def encode_reference_list(self, references):
+        '''
+        Return an encoded list of reference values. Used in encoding arrays and
+        dictionaries.
+        '''
         packs = (None, 'B', '>H')
         encoded_references = []
         for reference in references:
@@ -420,6 +475,7 @@ class BPlistWriter(object):
         return encoded_references
     
     def set_offset_size(self):
+        '''Set the number of bytes used to store an offset value.'''
         if 0 <= self.reference_table_offset < 0x100:
             self.offset_size = 1
         elif 0x100 <= self.reference_table_offset < 0x10000:
@@ -432,6 +488,7 @@ class BPlistWriter(object):
             raise ValueError
     
     def build_reference_table(self):
+        '''Return the encoded reference table.'''
         self.reference_table_offset = self.fileobj.tell()
         self.set_offset_size()
         formats = (None, 'B', '>H', 'BBB', '>L')
@@ -447,6 +504,7 @@ class BPlistWriter(object):
         return ''.join(encoded_table)
     
     def build_trailer(self):
+        '''Return the encoded final 32 bytes of a binary plist.'''
         number_of_objects = len(self.all_objects)
         root_object = 0
         return struct.pack('6xBB4xL4xL4xL', self.offset_size,
