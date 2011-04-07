@@ -42,7 +42,7 @@ class BPlistParser(object):
     A parser object for binary plist files. Initialize, then parse an open
     file object.
     '''
-    def parse(self, fileobj):
+    def __init__(self, fileobj):
         '''Parse an open file object. Seeking needs to be supported.'''
         self.fileobj = fileobj
         
@@ -67,6 +67,8 @@ class BPlistParser(object):
             self.offset_table.append(offset)
         
         self.fileobj.seek(self.offset_table[top_object])
+    
+    def parse(self):
         return self.parse_object()
     
     def parse_object(self):
@@ -552,8 +554,8 @@ def readBPlist(pathOrFile):
     if isinstance(pathOrFile, (str, unicode)):
         pathOrFile = open(pathOrFile)
         didOpen = True
-    p = BPlistParser()
-    rootObject = p.parse(pathOrFile)
+    p = BPlistParser(pathOrFile)
+    rootObject = p.parse()
     if didOpen:
         pathOrFile.close()
     return rootObject
