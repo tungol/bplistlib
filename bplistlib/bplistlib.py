@@ -375,27 +375,28 @@ class BPlistWriter(object):
     
     def get_offset_size(self):
         if 0 <= self.reference_table_offset < 0x100:
-            return 1
+            self.offset_size = 1
         elif 0x100 <= self.reference_table_offset < 0x10000:
-            return 2
+            self.offset_size = 2
         elif 0x10000 <= self.reference_table_offset < 0x1000000:
-            return 3
+            self.offset_size = 3
         elif 0x1000000 <= self.reference_table_offset < 0x100000000:
-            return 4
-        raise ValueError
+            self.offset_size = 4
+        else:
+            raise ValueError
     
     def build_reference_table(self):
         self.reference_table_offset = self.fileobj.tell()
-        offset_size = self.get_offset_size()
+        self.set_offset_size()
         formats = (None, 'B', '>H', 'BBB', '>L')
         encoded_table = []
         for offset in self.offsets:
-            if offset_size == 3:
+            if self.offset_size == 3:
                 first = offset // 0x100
                 second = (offset % 0x100) // 0x10
                 third = (offset % 0x100) % 0x10
                 offset = (first, second, third)
-            encoded_offset = struct.pack(formats[offset_size], offset)
+            encoded_offset = struct.pack(formats[self.offset_size], offset)
             encoded_table.append(encoded_offset)
         return ''.join(encoded_table)
     
