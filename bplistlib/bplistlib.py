@@ -180,8 +180,7 @@ class BPlistWriter(object):
     def write(self, root_object):
         self.collect_all_objects(root_object)
         self.flatten()
-        self.set_object_reference_size()
-        self.
+        self.set_reference_size()
         self.fileobj.write('bplist00')
         for object_ in self.all_objects:
             self.fileobj.write(self.encode(object_))
@@ -263,6 +262,15 @@ class BPlistWriter(object):
     
     def get_dictionary_length(self, dictionary):
         return len(dictionary) * 2
+    
+    def set_reference_size(self):
+        number_of_objects = len(self.all_objects)
+        if 0 <= number_of_objects < 256:
+            self.reference_size = 1
+        elif 256 <= number_of_objects < 65535:
+            self.reference_size = 2
+        else:
+            raise ValueError
     
     def encode(self, object_):
         encode_functions = {
