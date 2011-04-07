@@ -180,6 +180,8 @@ class BPlistWriter(object):
     def write(self, root_object):
         self.collect_all_objects(root_object)
         self.flatten()
+        self.set_object_reference_size()
+        self.
         self.fileobj.write('bplist00')
         for object_ in self.all_objects:
             self.fileobj.write(self.encode(object_))
@@ -244,11 +246,7 @@ class BPlistWriter(object):
             return 3
         raise ValueError
     
-    def get_date_length(self, date):
-        # TODO: I should be able to figure out the date ranges and use those
-        seconds = mktime(date.timetuple())
-        epoch_adjustment = 978307200.0
-        seconds -= epoch_adjustment
+    def get_date_length(self, seconds):
         return self.get_float_length(seconds)
     
     def get_data_length(self, data):
@@ -283,16 +281,87 @@ class BPlistWriter(object):
         return encode_object(object_)
     
     def encode_type_length(self, type_number, length):
-        pass
+        value = type_number << 4 + length
+        return struct.pack('B', value)
     
     def encode_boolean(self, boolean):
         type_number = 0
         length = self.get_boolean_length(boolean)
         return self.encode_type_length(type_number, length)
     
-    def encode_integer(self, integer, length):
+    def encode_integer(self, integer):
         type_number = 1
+        packs = ('b', '>h', '>l', '>q')
         length = self.get_integer_length(integer)
+        type_length = self.encode_type_length(type_number, length)
+        body = struct.pack(packs[length], integer)
+        return ''.join((type_length, body))
+    
+    def encode_float(self, float_):
+        type_number = 2
+        packs = (None, None, 'f', 'd')
+        length = self.get_float_length(float_)
+        type_length = self.encode_type_length(type_number, length)
+        body = struct.pack(packs[length], float_)
+        return ''.join((type_length, body))
+    
+    def encode_date(self, date):
+        type_number = 3
+        packs = (None, None, 'f', 'd')
+        epoch_adjustment = 978307200.0
+        seconds = mktime(date.timetuple())
+        seconds -= epoch_adjustment
+        length = self.get_date_length(date)
+        type_length = self.encode_type_length(type_number, length)
+        body = struct.pack(packs[length], seconds)
+        return ''.join((type_length, body))
+    
+    def encode_data(self, data):
+        type_number = 4
+        length = self.get_data_length(data)
+        type_length = self.encode_type_length(type_number, length)
+        body = data.data
+        return ''.join((type_length, body))
+    
+    def encode_string(self, string):
+        type_number = 5
+        length = self.get_string_length(string)
+        type_length = self.encode_type_length(type_number, length)
+        body = string.encode('ascii')
+        return ''.join((type_length, body))
+    
+    def encode_unicode(self, unicode_):
+        type_number = 6
+        length = self.get_unicode_length(unicode_)
+        type_length = self.encode_type_length(type_number, length)
+        body = unicode_.encode('utf16-be')
+        return ''.join((type_length, body))
+    
+    def encode_array(self, array):
+        type_number = 0xa
+        length = self.get_array_length(array)
+        type_length = self.encode_type_length(type_number, length)
+        encoded_array = [type_length]
+        encoded_array += self.encode_reference_list(array)
+        return ''.join(encoded_array)
+    
+    def encode_dictionary(self, dictionary):
+        type_number = 0xd
+        length = self.get_dictionary_length(dictionary)
+        type_length = self.encode_type_length(type_number, length)
+        encoded_dictionary = [type_length]
+        encoded_dictionary += self.encode_reference_list(dictionary.keys())
+        encoded_dictionary += self.encode_reference_list(dictionary.values())
+        return ''.join(encoded_dictionary)
+    
+    def encode_reference_list(self, references):
+        packs = (None, 'B', '>H')
+        encoded_references = []
+        for reference in references:
+            encoded_reference = struct.pack(packs[self.object_reference_size],
+                                            reference)
+            encoded_references.append(encoded_reference)
+        return encoded_references
     
 
 def readAnyPlist(pathOrFile):
