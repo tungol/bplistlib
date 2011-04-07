@@ -128,7 +128,7 @@ class BPlistParser(object):
     
     def parse_byte_string(self, obj_len):
         raw = self.fileobj.read(obj_len)
-        return raw.decode('ascii')
+        return raw
     
     def parse_unicode_string(self, obj_len):
         raw = self.fileobj.read(obj_len * 2)
@@ -269,7 +269,7 @@ class BPlistWriter(object):
         return len(string)
     
     def get_unicode_length(self, unicode_):
-        return len(unicode_) * 2
+        return len(unicode_)
     
     def get_array_length(self, array):
         return len(array)
