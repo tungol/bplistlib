@@ -198,7 +198,7 @@ class BPlistWriter(object):
         if not found:
             self.all_objects.append(object_)
         if type(object_) == list:
-            for item in list:
+            for item in object_:
                 self.collect_all_objects(item)
         elif type(object_) == dict:
             for item in object_.keys() + object_.values():
