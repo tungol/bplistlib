@@ -176,15 +176,13 @@ class BPlistWriter(object):
         self.fileobj = fileobj
         self.all_objects = []
         self.flattened_objects = {}
-        self.lengths = []
     
     def write(self, root_object):
         self.collect_all_objects(root_object)
         self.flatten()
-        self.set_lengths()
         self.fileobj.write('bplist00')
-        for item in self.all_objects:
-            self.fileobj.write(self.encode(item))
+        for object_ in self.all_objects:
+            self.fileobj.write(self.encode(object_))
         self.fileobj.write(self.build_reference_table())
         self.fileobj.write(self.build_trailer())
     
@@ -214,23 +212,6 @@ class BPlistWriter(object):
                 self.flattened_objects.update({item_index: flattened_dict})
         for index, object_ in self.flattened_objects.values():
             self.all_objects[index] = object_
-    
-    def set_lengths(self):
-        lookup_table = {
-                        bool: self.get_boolean_length,
-                        None: self.get_boolean_length,
-                        int: self.get_integer_length,
-                        float: self.get_real_length,
-                        datetime: self.get_date_length,
-                        plistlib.Data: self.get_data_length,
-                        str: self.get_string_length,
-                        unicode: self.get_unicode_length,
-                        list: self.get_array_length,
-                        dict: self.get_dictionary_length,
-        }
-        for object_ in enumerate(self.all_objects):
-            get_length = lookup_table[type(object_)]
-            self.lengths.append(get_length(object_))
     
     def get_boolean_length(self, boolean):
         if boolean is None:
@@ -264,10 +245,54 @@ class BPlistWriter(object):
         raise ValueError
     
     def get_date_length(self, date):
+        # TODO: I should be able to figure out the date ranges and use those
         seconds = mktime(date.timetuple())
         epoch_adjustment = 978307200.0
         seconds -= epoch_adjustment
         return self.get_float_length(seconds)
+    
+    def get_data_length(self, data):
+        return len(data.data)
+    
+    def get_string_length(self, string):
+        return len(string)
+    
+    def get_unicode_length(self, unicode_):
+        return len(unicode_) * 2
+    
+    def get_array_length(self, array):
+        return len(array)
+    
+    def get_dictionary_length(self, dictionary):
+        return len(dictionary) * 2
+    
+    def encode(self, object_):
+        encode_functions = {
+                            bool: self.encode_boolean,
+                            None: self.encode_boolean,
+                            int: self.encode_integer,
+                            float: self.encode_float,
+                            datetime: self.encode_date,
+                            plistlib.Data: self.encode_data,
+                            str: self.encode_string,
+                            unicode: self.encode_unicode,
+                            list: self.encode_array,
+                            dict: self.encode_dictionary,
+        }
+        encode_object = encode_functions[type(object_)]
+        return encode_object(object_)
+    
+    def encode_type_length(self, type_number, length):
+        pass
+    
+    def encode_boolean(self, boolean):
+        type_number = 0
+        length = self.get_boolean_length(boolean)
+        return self.encode_type_length(type_number, length)
+    
+    def encode_integer(self, integer, length):
+        type_number = 1
+        length = self.get_integer_length(integer)
     
 
 def readAnyPlist(pathOrFile):
