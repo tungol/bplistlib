@@ -226,8 +226,8 @@ class BPlistWriter(object):
             raise ValueError
     
     def get_integer_length(self, integer):
-        bit_lengths = [8 * (2 ** x - 1) for x in range(4)]
-        limits = [2 ** bit_length - 1 for bit_length in bit_lengths]
+        bit_lengths = [8 * 2 ** x for x in range(4)]
+        limits = [2 ** (bit_length - 1) for bit_length in bit_lengths]
         for index, limit in enumerate(limits):
             if -limit <= integer < limit:
                 return index
