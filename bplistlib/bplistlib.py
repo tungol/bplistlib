@@ -69,6 +69,7 @@ class BPlistParser(object):
         self.fileobj.seek(self.offset_table[top_object])
     
     def parse(self):
+        '''Return the parsed root object.'''
         return self.parse_object()
     
     def parse_object(self):
@@ -211,6 +212,9 @@ class BPlistWriter(object):
         self.all_objects = []
         self.flattened_objects = {}
         self.offsets = []
+        self.reference_size = None
+        self.offset_size = None
+        self.reference_table_offset = None
     
     def write(self, root_object):
         '''Write the root_object to self.file_object.'''
