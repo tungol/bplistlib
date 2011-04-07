@@ -275,7 +275,7 @@ class BPlistWriter(object):
         return len(array)
     
     def get_dictionary_length(self, dictionary):
-        return len(dictionary) * 2
+        return len(dictionary)
     
     def set_reference_size(self):
         number_of_objects = len(self.all_objects)
