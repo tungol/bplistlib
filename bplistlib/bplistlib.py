@@ -352,7 +352,7 @@ class BPlistWriter(object):
         length = self.get_array_length(array)
         type_length = self.encode_type_length(type_number, length)
         encoded_array = [type_length]
-        encoded_array += self.encode_reference_list(array)
+        encoded_array += self.encode_reference_list(array, )
         return ''.join(encoded_array)
     
     def encode_dictionary(self, dictionary):
@@ -364,7 +364,7 @@ class BPlistWriter(object):
         encoded_dictionary += self.encode_reference_list(dictionary.values())
         return ''.join(encoded_dictionary)
     
-    def encode_reference_list(self, references, size):
+    def encode_reference_list(self, references):
         packs = (None, 'B', '>H')
         encoded_references = []
         for reference in references:
@@ -373,7 +373,7 @@ class BPlistWriter(object):
             encoded_references.append(encoded_reference)
         return encoded_references
     
-    def get_offset_size(self):
+    def set_offset_size(self):
         if 0 <= self.reference_table_offset < 0x100:
             self.offset_size = 1
         elif 0x100 <= self.reference_table_offset < 0x10000:
@@ -459,5 +459,5 @@ def writeBPlist(pathOrFile, rootObject):
 
 def writeBPlistToString(rootObject):
     f = cStringIO.StringIO()
-    writeBPlist(rootObject, f)
+    writeBPlist(f, rootObject)
     return f.getvalue()
