@@ -31,7 +31,7 @@ Copyright: 2007-2008 Starlight Computer Wizardry
 
 
 import cStringIO
-import datetime
+from datetime import datetime
 import plistlib
 import struct
 from time import mktime
@@ -399,6 +399,13 @@ class BPlistWriter(object):
             encoded_offset = struct.pack(formats[self.offset_size], offset)
             encoded_table.append(encoded_offset)
         return ''.join(encoded_table)
+    
+    def build_trailer(self):
+        number_of_objects = len(self.all_objects)
+        root_object = 0
+        values = (self.offset_size, self.reference_size, number_of_objects,
+                  root_object, self.reference_table_offset)
+        return struct.pack('6xBB4xL4xL4xL', values)
     
 
 def readAnyPlist(pathOrFile):
