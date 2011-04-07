@@ -207,12 +207,12 @@ class BPlistWriter(object):
                 self.flattened_objects.update({item_index: flattened_list})
             elif type(item) == dict:
                 flattened_dict = {}
-                for key, value in item[:].items():
+                for key, value in item.items():
                     key_index = self.all_objects.index(key)
                     value_index = self.all_objects.index(value)
                     flattened_dict.update({key_index: value_index})
                 self.flattened_objects.update({item_index: flattened_dict})
-        for index, object_ in self.flattened_objects.values():
+        for index, object_ in self.flattened_objects.items():
             self.all_objects[index] = object_
     
     def get_boolean_length(self, boolean):
@@ -403,9 +403,9 @@ class BPlistWriter(object):
     def build_trailer(self):
         number_of_objects = len(self.all_objects)
         root_object = 0
-        values = (self.offset_size, self.reference_size, number_of_objects,
-                  root_object, self.reference_table_offset)
-        return struct.pack('6xBB4xL4xL4xL', values)
+        return struct.pack('6xBB4xL4xL4xL', self.offset_size,
+                            self.reference_size, number_of_objects,
+                            root_object, self.reference_table_offset)
     
 
 def readAnyPlist(pathOrFile):
