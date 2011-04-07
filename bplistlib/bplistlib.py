@@ -161,9 +161,10 @@ class BinaryPlistParser(object):
         '''
         object_offsets = []
         formats = (None, 'B', '>H')
+        format = formats[self.object_reference_size]
         for i in range(object_length):
-            object_number = struct.unpack(formats[self.object_reference_size],
-                                    self.file_object.read(self.object_reference_size))[0]
+            raw = self.file_object.read(self.object_reference_size)
+            object_number = struct.unpack(format, raw)[0]
             object_offsets.append(self.reference_table[object_number])
         array = []
         for offset in object_offsets:
@@ -179,14 +180,15 @@ class BinaryPlistParser(object):
         '''
         key_offsets = []
         formats = (None, 'B', '>H')
+        format = formats[self.object_reference_size]
         for i in range(object_length):
-            object_number = struct.unpack(formats[self.object_reference_size],
-                                    self.file_object.read(self.object_reference_size))[0]
+            raw = self.file_object.read(self.object_reference_size)
+            object_number = struct.unpack(format, raw)[0]
             key_offsets.append(self.reference_table[object_number])
         value_offsets = []
         for i in range(object_length):
-            object_number = struct.unpack(formats[self.object_reference_size],
-                                    self.file_object.read(self.object_reference_size))[0]
+            raw = self.file_object.read(self.object_reference_size)
+            object_number = struct.unpack(format, raw)[0]
             value_offsets.append(self.reference_table[object_number])
         mydict = {}
         for key_offset, value_offset in zip(key_offsets, value_offsets):
@@ -558,8 +560,8 @@ def read_binary_plist(path_or_file):
     if isinstance(path_or_file, (str, unicode)):
         path_or_file = open(path_or_file)
         did_open = True
-    p = BinaryPlistParser(path_or_file)
-    root_object = p.parse()
+    parser = BinaryPlistParser(path_or_file)
+    root_object = parser.parse()
     if did_open:
         path_or_file.close()
     return root_object
@@ -590,6 +592,6 @@ def write_binary_plist_to_string(root_object):
     Encode the given root object as a binary plist and return a string of the
     encoding.
     '''
-    f = cStringIO.StringIO()
-    write_binary_plist(f, root_object)
-    return f.getvalue()
+    string_io_object = cStringIO.StringIO()
+    write_binary_plist(string_io_object, root_object)
+    return string_io_object.getvalue()
