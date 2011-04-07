@@ -513,6 +513,11 @@ class BPlistWriter(object):
     
 
 def readAnyPlist(pathOrFile):
+    '''
+    Detect if a given path or file object represents a binary plist file or an
+    xml plist file. Call the appropriate function to read the type of plist
+    found and return the parsed root object.
+    '''
     didOpen = False
     if isinstance(pathOrFile, (str, unicode)):
         pathOrFile = open(pathOrFile)
@@ -528,6 +533,10 @@ def readAnyPlist(pathOrFile):
 
 
 def readAnyPlistFromString(data):
+    '''
+    Detect if a given string represents a binary plist or an xml plist. Call
+    the appropriate function to parse the string and return the result.
+    '''
     if data[:8] == 'bplist00':
         return readBPlistFromString(data)
     else:
@@ -535,6 +544,10 @@ def readAnyPlistFromString(data):
 
 
 def readBPlist(pathOrFile):
+    '''
+    Parse a binary plist from a path or file object, and return the root
+    object.
+    '''
     didOpen = False
     if isinstance(pathOrFile, (str, unicode)):
         pathOrFile = open(pathOrFile)
@@ -547,10 +560,15 @@ def readBPlist(pathOrFile):
 
 
 def readBPlistFromString(data):
+    '''Parse a binary plist from a string and return the root object.'''
     return readBPlist(cStringIO.StringIO(data))
 
 
 def writeBPlist(pathOrFile, rootObject):
+    '''
+    Write a binary plist representation of the root object to the path or
+    file object given.
+    '''
     didOpen = 0
     if isinstance(pathOrFile, (str, unicode)):
         pathOrFile = open(pathOrFile, "w")
@@ -562,6 +580,10 @@ def writeBPlist(pathOrFile, rootObject):
 
 
 def writeBPlistToString(rootObject):
+    '''
+    Encode the given root object as a binary plist and return a string of the
+    encoding.
+    '''
     f = cStringIO.StringIO()
     writeBPlist(f, rootObject)
     return f.getvalue()
