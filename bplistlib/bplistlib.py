@@ -38,11 +38,12 @@ from time import mktime
 
 
 class BPlistParser(object):
-    
-    def __init__(self):
-        pass
-    
+    '''
+    A parser object for binary plist files. Initialize, then parse an open
+    file object.
+    '''
     def parse(self, fileobj):
+        '''Parse an open file object. Seeking needs to be supported.'''
         self.fileobj = fileobj
         
         self.fileobj.seek(-32, 2)
@@ -69,6 +70,7 @@ class BPlistParser(object):
         return self.parse_object()
     
     def parse_object(self):
+        '''Read out and parse an object within a binary plist.'''
         # it's worth noting that the type numbers of arrays and dictionaries
         # are mnenomic in hex, 0xa and 0xd. Cute.
         type_parser = (
@@ -95,6 +97,7 @@ class BPlistParser(object):
         return type_parser[obj_type](obj_len)
     
     def parse_boolean(self, obj_len):
+        '''Parse an encoded boolean from a binary plist.'''
         if obj_len == 0:
             return None
         elif obj_len == 8:
@@ -105,16 +108,19 @@ class BPlistParser(object):
             raise ValueError("Unknown Boolean")
     
     def parse_int(self, obj_len):
+        '''Read out and parse an encoded integer from a binary plist.'''
         raw = self.fileobj.read(1 << obj_len)
         packs = ('b', '>h', '>l', '>q')
         return struct.unpack(packs[obj_len], raw)[0]
     
     def parse_real(self, obj_len):
+        '''Read out and parse an encoded float from a binary plist.'''
         raw = self.fileobj.read(1 << obj_len)
         packs = (None, None, 'f', 'd')
         return struct.unpack(packs[obj_len], raw[::-1])[0]
     
     def parse_date(self, obj_len):
+        '''Read out and parse an encoded date from a binary plist'''
         # seconds since 1 January 2001, 0:00:00.0
         raw = self.fileobj.read(1 << obj_len)
         packs = (None, None, 'f', 'd')
@@ -124,17 +130,32 @@ class BPlistParser(object):
         return datetime.fromtimestamp(seconds)
     
     def parse_binary_data(self, obj_len):
+        '''
+        Read out binary data from a binary plist. No parsing is performed.
+        '''
         return plistlib.Data(self.fileobj.read(obj_len))
     
     def parse_byte_string(self, obj_len):
+        '''
+        Read out a encoded string from a binary plist. No parsing is performed,
+        it should be ascii.
+        '''
         raw = self.fileobj.read(obj_len)
         return raw
     
     def parse_unicode_string(self, obj_len):
+        '''
+        Read out and parse an encoded unicode string from a binary plist. The
+        data is parsed as big-endian utf-16.
+        '''
         raw = self.fileobj.read(obj_len * 2)
         return raw.decode('utf_16_be')
     
     def parse_array(self, obj_len):
+        '''
+        Read out and parse an encoded array from a binary plist. Objects within
+        the array are recursively parsed as well.
+        '''
         object_offsets = []
         packs = (None, 'B', '>H')
         for i in range(obj_len):
@@ -149,6 +170,10 @@ class BPlistParser(object):
         return array
     
     def parse_dictionary(self, obj_len):
+        '''
+        Read out and parse an encoded dictionary from a binary plist.
+        Objects inside the dictionary are recursively parsed as well.
+        '''
         key_offsets = []
         packs = (None, 'B', '>H')
         for i in range(obj_len):
