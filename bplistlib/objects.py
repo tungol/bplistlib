@@ -236,20 +236,13 @@ class BinaryPlistContainerObjectHandler(BinaryPlistBaseHandler):
         Return an encoded list of reference values. Used in encoding arrays and
         dictionaries.
         '''
-        encoded_references = []
-        for reference in references:
-            encoded_reference = pack(self.format, reference)
-            encoded_references.append(encoded_reference)
-        return ''.join(encoded_references)
+        format_ = self.format * len(references)
+        encoded = pack(format_, *references)
+        return encoded
     
     def decode_reference_list(self, raw, object_length):
-        references = []
-        index_range = range(object_length)
-        indexes = [index * self.reference_size for index in index_range]
-        references = [raw[index:index + self.reference_size] for
-                      index in indexes]
-        references = [unpack(self.format, reference)[0] for
-                      reference in references]
+        format_ = self.format * object_length
+        references = unpack(format_, raw)
         return references
     
     def flatten_object_list(self, object_list):
