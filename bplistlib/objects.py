@@ -61,6 +61,9 @@ class BinaryPlistBaseHandler(object):
     def decode_postprocess(self, object_):
         return object_
     
+    def unflatten(self, object_):
+        return object_
+    
 
 class BinaryPlistBooleanHandler(BinaryPlistBaseHandler):
     def __init__(self):
@@ -204,11 +207,19 @@ class BinaryPlistContainerObjectHandler(BinaryPlistBaseHandler):
         BinaryPlistBaseHandler.__init__(self)
         self.formats = (None, 'B', '>H')
         self.format = None
+        self.reference_size = None
+        self.all_objects = None
         self.object_handler = None
     
     def set_reference_size(self, reference_size):
         self.reference_size = reference_size
         self.format = self.formats[reference_size]
+    
+    def set_all_objects(self, all_objects):
+        self.all_objects = all_objects
+    
+    def set_object_handler(self, object_handler):
+        self.object_handler = object_handler
     
     def encode_reference_list(self, references):
         '''
@@ -231,6 +242,14 @@ class BinaryPlistContainerObjectHandler(BinaryPlistBaseHandler):
                       reference in references]
         return references
     
+    def unflatten_reference_list(self, references):
+        unflattened = []
+        for reference in references:
+            item = self.all_objects[reference]
+            item = self.object_handler.unflatten(item)
+            unflattened.append(item)
+        return unflattened
+    
 
 class BinaryPlistArrayHandler(BinaryPlistContainerObjectHandler):
     def __init__(self):
@@ -246,6 +265,9 @@ class BinaryPlistArrayHandler(BinaryPlistContainerObjectHandler):
     
     def decode_body(self, raw, object_length):
         return self.decode_reference_list(raw, object_length)
+    
+    def unflatten(self, array):
+        return self.unflatten_reference_list(array)
     
 
 class BinaryPlistDictionaryHandler(BinaryPlistContainerObjectHandler):
@@ -268,6 +290,11 @@ class BinaryPlistDictionaryHandler(BinaryPlistContainerObjectHandler):
         values = self.decode_reference_list(raw[half:], object_length)
         return dict(zip(keys, values))
     
+    def unflatten(self, dictionary):
+        keys = self.unflatten_reference_list(dictionary.keys())
+        values = self.unflatten_reference_list(dictionary.values())
+        return dict(zip(keys, values))
+    
 
 class BinaryPlistObjectHandler(object):
     def __init__(self):
@@ -285,12 +312,25 @@ class BinaryPlistObjectHandler(object):
             else:
                 for type_ in handler.types:
                     self.handlers_by_type.update({type_: handler})
+        self.set_object_handler()
     
-    def set_reference_size(self, reference_size):
+    def set_on_containers(self, setter_function, value):
         array_handler = self.handlers_by_type[list]
         dictionary_handler = self.handlers_by_type[dict]
-        array_handler.set_reference_size(reference_size)
-        dictionary_handler.set_reference_size(reference_size)
+        setter_function(array_handler, value)
+        setter_function(dictionary_handler, value)
+    
+    def set_reference_size(self, reference_size):
+        function = BinaryPlistContainerObjectHandler.set_reference_size
+        self.set_on_containers(function, reference_size)
+    
+    def set_all_objects(self, all_objects):
+        function = BinaryPlistContainerObjectHandler.set_all_objects
+        self.set_on_containers(function, all_objects)
+    
+    def set_object_handler(self):
+        function = BinaryPlistContainerObjectHandler.set_object_handler
+        self.set_on_containers(function, self)
     
     def encode(self, object_):
         handler = self.handlers_by_type[type(object_)]
@@ -300,6 +340,10 @@ class BinaryPlistObjectHandler(object):
         object_type, object_length = self.decode_first_byte(file_object)
         handler = self.handlers_by_type_number[object_type]
         return handler.decode(file_object, object_length)
+    
+    def unflatten(self, object_):
+        handler = self.handlers_by_type[type(object_)]
+        return handler.unflatten(object_)
     
     def decode_first_byte(self, file_object):
         value = unpack('B', file_object.read(1))[0]
@@ -330,8 +374,10 @@ class BinaryPlistParser(object):
             self.file_object.seek(offset)
             object_ = self.object_handler.decode(self.file_object)
             self.all_objects.append(object_)
-        root_object = trailer[3]
-        return self.unflatten(self.all_objects[root_object])
+        self.object_handler.set_all_objects(self.all_objects)
+        root_object_number = trailer[3]
+        root_object = self.all_objects[root_object_number]
+        return self.object_handler.unflatten(root_object)
     
     def read_trailer(self):
         self.file_object.seek(-32, 2)
@@ -354,29 +400,6 @@ class BinaryPlistParser(object):
                 offset = offset[0]
             reference_table.append(offset)
         return reference_table
-    
-    def unflatten(self, flattened_object):
-        if type(flattened_object) == list:
-            unflattened_object = []
-            for reference in flattened_object:
-                list_item = self.all_objects[reference]
-                list_item = self.unflatten(list_item)
-                unflattened_object.append(list_item)
-        elif type(flattened_object) == dict:
-            keys = []
-            for reference in flattened_object.keys():
-                key = self.all_objects[reference]
-                key = self.unflatten(key)
-                keys.append(key)
-            values = []
-            for reference in flattened_object.values():
-                value = self.all_objects[reference]
-                value = self.unflatten(value)
-                values.append(value)
-            unflattened_object = dict(zip(keys, values))
-        else:
-            unflattened_object = flattened_object
-        return unflattened_object
     
 
 class BinaryPlistWriter(object):
