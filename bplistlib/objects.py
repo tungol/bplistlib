@@ -164,6 +164,9 @@ class BinaryPlistDataHander(BinaryPlistBaseHandler):
         self.type_number = 4
         self.types = type(Data(''))  # ugly
     
+    def get_object_length(self, data):
+        return len(data.data)
+    
     def encode_body(self, data, object_length):
         return data.data
     
@@ -185,7 +188,7 @@ class BinaryPlistStringHandler(BinaryPlistBaseHandler):
 class BinaryPlistUnicodeStringHandler(BinaryPlistStringHandler):
     def __init__(self):
         BinaryPlistStringHandler.__init__(self)
-        self.type_number = 5
+        self.type_number = 6
         self.encoding = 'utf_16_be'
         self.types = unicode
     
@@ -224,7 +227,7 @@ class BinaryPlistContainerObjectHandler(BinaryPlistBaseHandler):
         indexes = [index * self.reference_size for index in index_range]
         references = [raw[index:index + self.reference_size] for
                       index in indexes]
-        references = [unpack(self.format, reference) for
+        references = [unpack(self.format, reference)[0] for
                       reference in references]
         return references
     
@@ -353,7 +356,6 @@ class BinaryPlistParser(object):
         return reference_table
     
     def unflatten(self, flattened_object):
-        print flattened_object
         if type(flattened_object) == list:
             unflattened_object = []
             for reference in flattened_object:
