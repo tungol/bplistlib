@@ -161,10 +161,10 @@ class BinaryPlistParser(object):
         '''
         object_offsets = []
         formats = (None, 'B', '>H')
-        format = formats[self.object_reference_size]
+        reference_format = formats[self.object_reference_size]
         for i in range(object_length):
             raw = self.file_object.read(self.object_reference_size)
-            object_number = struct.unpack(format, raw)[0]
+            object_number = struct.unpack(reference_format, raw)[0]
             object_offsets.append(self.reference_table[object_number])
         array = []
         for offset in object_offsets:
@@ -180,15 +180,15 @@ class BinaryPlistParser(object):
         '''
         key_offsets = []
         formats = (None, 'B', '>H')
-        format = formats[self.object_reference_size]
+        reference_format = formats[self.object_reference_size]
         for i in range(object_length):
             raw = self.file_object.read(self.object_reference_size)
-            object_number = struct.unpack(format, raw)[0]
+            object_number = struct.unpack(reference_format, raw)[0]
             key_offsets.append(self.reference_table[object_number])
         value_offsets = []
         for i in range(object_length):
             raw = self.file_object.read(self.object_reference_size)
-            object_number = struct.unpack(format, raw)[0]
+            object_number = struct.unpack(reference_format, raw)[0]
             value_offsets.append(self.reference_table[object_number])
         mydict = {}
         for key_offset, value_offset in zip(key_offsets, value_offsets):
