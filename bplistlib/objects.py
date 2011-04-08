@@ -369,7 +369,7 @@ class BinaryPlistParser(object):
                 key = self.unflatten(key)
                 keys.append(key)
             values = []
-            for reference in flattened_object.keys():
+            for reference in flattened_object.values():
                 value = self.all_objects[reference]
                 value = self.unflatten(value)
                 values.append(value)

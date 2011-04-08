@@ -75,7 +75,7 @@ def read_binary_plist(path_or_file):
         path_or_file = open(path_or_file)
         did_open = True
     parser = BinaryPlistParser(path_or_file)
-    root_object = parser.parse()
+    root_object = parser.read()
     if did_open:
         path_or_file.close()
     return root_object
