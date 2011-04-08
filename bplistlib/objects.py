@@ -243,7 +243,7 @@ class BinaryPlistContainerObjectHandler(BinaryPlistBaseHandler):
     def decode_reference_list(self, raw, object_length):
         format_ = self.format * object_length
         references = unpack(format_, raw)
-        return references
+        return list(references)
     
     def flatten_object_list(self, object_list):
         reference_list = []
@@ -481,7 +481,8 @@ def write(file_object, root_object):
     table_offset = file_object.tell()
     offset_size = get_byte_width(table_offset, 4)
     table = table_handler.encode(offsets, offset_size)
-    trailer = trailer_handler.encode(offset_size, table_offset)
+    trailer = trailer_handler.encode(offset_size, reference_size, objects,
+                                     table_offset)
     file_object.write(table)
     file_object.write(trailer)
 
