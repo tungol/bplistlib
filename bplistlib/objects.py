@@ -64,6 +64,16 @@ class BinaryPlistBaseHandler(object):
     def unflatten(self, object_):
         return object_
     
+    def collect_all_objects(self, object_, all_objects):
+        try:
+            find_with_type(object_, all_objects)
+        except ValueError:
+            all_objects.append(object_)
+            self.collect_children(object_, all_objects)
+    
+    def collect_children(self, object, all_objects):
+        pass
+    
 
 class BinaryPlistBooleanHandler(BinaryPlistBaseHandler):
     def __init__(self):
@@ -242,13 +252,20 @@ class BinaryPlistContainerObjectHandler(BinaryPlistBaseHandler):
                       reference in references]
         return references
     
+    def flatten_object_list(self, object_list):
+        reference_list = []
+        for object_ in object_list:
+            reference = find_with_type(object_, self.all_objects)
+            reference_list.append(reference)
+        return reference_list
+    
     def unflatten_reference_list(self, references):
-        unflattened = []
+        object_list = []
         for reference in references:
             item = self.all_objects[reference]
             item = self.object_handler.unflatten(item)
-            unflattened.append(item)
-        return unflattened
+            object_list.append(item)
+        return object_list
     
 
 class BinaryPlistArrayHandler(BinaryPlistContainerObjectHandler):
@@ -266,8 +283,15 @@ class BinaryPlistArrayHandler(BinaryPlistContainerObjectHandler):
     def decode_body(self, raw, object_length):
         return self.decode_reference_list(raw, object_length)
     
+    def flatten(self, array):
+        return self.flatten_object_list(array)
+    
     def unflatten(self, array):
         return self.unflatten_reference_list(array)
+    
+    def collect_children(self, array, all_objects):
+        for item in array:
+            self.object_handler.collect_all_objects(item, all_objects)
     
 
 class BinaryPlistDictionaryHandler(BinaryPlistContainerObjectHandler):
@@ -290,10 +314,19 @@ class BinaryPlistDictionaryHandler(BinaryPlistContainerObjectHandler):
         values = self.decode_reference_list(raw[half:], object_length)
         return dict(zip(keys, values))
     
+    def flatten(self, dictionary):
+        keys = self.flatten_object_list(dictionary.keys())
+        values = self.flatten_object_list(dictionary.values())
+        return dict(zip(keys, values))
+    
     def unflatten(self, dictionary):
         keys = self.unflatten_reference_list(dictionary.keys())
         values = self.unflatten_reference_list(dictionary.values())
         return dict(zip(keys, values))
+    
+    def collect_children(self, dictionary, all_objects):
+        for item in dictionary.keys() + dictionary.values():
+            self.object_handler.collect_all_objects(item, all_objects)
     
 
 class BinaryPlistObjectHandler(object):
@@ -341,6 +374,10 @@ class BinaryPlistObjectHandler(object):
         handler = self.handlers_by_type_number[object_type]
         return handler.decode(file_object, object_length)
     
+    def flatten(self, object_):
+        handler = self.handlers_by_type[type(object_)]
+        return handler.flatten(object_)
+    
     def unflatten(self, object_):
         handler = self.handlers_by_type[type(object_)]
         return handler.unflatten(object_)
@@ -352,6 +389,10 @@ class BinaryPlistObjectHandler(object):
         if object_length == 15:
             object_length = self.decode(file_object)
         return object_type, object_length
+    
+    def collect_all_objects(self, object_, all_objects):
+        handler = self.handlers_by_type[type(object_)]
+        handler.collect_all_objects(object_, all_objects)
     
 
 class BinaryPlistParser(object):
@@ -416,7 +457,6 @@ class BinaryPlistWriter(object):
         self.object_handler = BinaryPlistObjectHandler()
         self.file_object = file_object
         self.all_objects = []
-        self.flattened_objects = {}
         self.offsets = []
         self.reference_size = None
         self.offset_size = None
@@ -424,7 +464,8 @@ class BinaryPlistWriter(object):
     
     def write(self, root_object):
         '''Write the root_object to self.file_object.'''
-        self.collect_all_objects(root_object)
+        self.object_handler.collect_all_objects(root_object, self.all_objects)
+        self.object_handler.set_all_objects(self.all_objects)
         self.flatten()
         self.set_reference_size()
         self.file_object.write('bplist00')
@@ -433,57 +474,17 @@ class BinaryPlistWriter(object):
         self.file_object.write(self.build_reference_table())
         self.file_object.write(self.build_trailer())
     
-    def collect_all_objects(self, object_):
-        '''
-        Build self.all_objects by recursively walking the tree of objects and
-        collecting all unique objects found. An object is unique if no other
-        object already in self.all_objects matches it in equality and type.
-        '''
-        found = False
-        for comparison_object in self.all_objects:
-            if (type(object_) == type(comparison_object) and
-                object_ == comparison_object):
-                found = True
-                break
-        if not found:
-            self.all_objects.append(object_)
-        if type(object_) == list:
-            for item in object_:
-                self.collect_all_objects(item)
-        elif type(object_) == dict:
-            for item in object_.keys() + object_.values():
-                self.collect_all_objects(item)
-    
-    def find_in_all_objects(self, object_):
-        '''
-        Find an object in self.all_objects, matching equality and type, and
-        return the index it was found at. If not found, raise ValueError.
-        '''
-        for index, comparison_object in enumerate(self.all_objects):
-            if (type(object_) == type(comparison_object) and
-                object_ == comparison_object):
-                return index
-        return ValueError
-    
     def flatten(self):
         '''
         Take all dictionaries and arrays in self.all_objects and replace each
         child object with the index of that child object in self.all_objects.
         '''
+        flattened_objects = {}
         for item_index, item in enumerate(self.all_objects):
-            if type(item) == list:
-                flattened_list = []
-                for list_item in item:
-                    flattened_list.append(self.find_in_all_objects(list_item))
-                self.flattened_objects.update({item_index: flattened_list})
-            elif type(item) == dict:
-                flattened_dict = {}
-                for key, value in item.items():
-                    key_index = self.find_in_all_objects(key)
-                    value_index = self.find_in_all_objects(value)
-                    flattened_dict.update({key_index: value_index})
-                self.flattened_objects.update({item_index: flattened_dict})
-        for index, object_ in self.flattened_objects.items():
+            if type(item) in (list, dict):
+                flattened = self.object_handler.flatten(item)
+                flattened_objects.update({item_index: flattened})
+        for index, object_ in flattened_objects.items():
             self.all_objects[index] = object_
     
     def set_reference_size(self):
@@ -542,3 +543,14 @@ class BinaryPlistWriter(object):
                     self.reference_size, number_of_objects,
                     root_object, self.reference_table_offset)
     
+
+def find_with_type(value, list_):
+    '''
+    Find value in list_, matching both for equality and type, and
+    return the index it was found at. If not found, raise ValueError.
+    '''
+    for index, comparison_value in enumerate(list_):
+        if (type(value) == type(comparison_value) and 
+            value == comparison_value):
+            return index
+    raise ValueError
