@@ -30,12 +30,14 @@ Copyright: 2007-2008 Starlight Computer Wizardry
 '''
 
 
-from bplistlib import readAnyPlist, readBPlist, readAnyPlistFromString
-from bplistlib import readBPlistFromString, writeBPlist, writeBPlistToString
+from bplistlib import read_any_plist, read_any_plist_from_string
+from bplistlib import read_binary_plist, read_binary_plist_from_string
+from bplistlib import write_binary_plist, write_binary_plist_to_string
 
 
-__all__ = ['readAnyPlist', 'readBPlist', 'readAnyPlistFromString',
-           'readBPlistFromString', 'writeBPlist', 'writeBPlistToString']
+__all__ = ['read_any_plist', 'read_any_plist_from_string',
+           'read_binary_plist', 'read_binary_plist_from_string',
+           'write_binary_plist', 'write_binary_plist_to_string']
 
 __packages__ = ['bplistlib']
 __version__ = '0.1pre'
@@ -51,5 +53,5 @@ __classifiers__ = [
   'License :: OSI Approved :: BSD License',
   'Operating System :: OS Independent',
   'Programming Language :: Python',
-  'Topic :: Software Development :: Libraries :: Python Modules'
+  'Topic :: Software Development :: Libraries :: Python Modules',
 ]
