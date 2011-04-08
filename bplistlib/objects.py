@@ -443,7 +443,7 @@ class BinaryPlistTrailerHandler(object):
                     number_of_objects, root_object, table_offset)
     
 
-def read(self, file_object):
+def read(file_object):
     object_handler = BinaryPlistObjectHandler()
     table_handler = BinaryPlistTableHandler()
     trailer_handler = BinaryPlistTrailerHandler()
@@ -461,7 +461,7 @@ def read(self, file_object):
     root_object = objects[root_object_number]
     return object_handler.unflatten(root_object)
 
-def write(self, file_object, root_object):
+def write(file_object, root_object):
     '''Write the root_object to file_object.'''
     object_handler = BinaryPlistObjectHandler()
     table_handler = BinaryPlistTableHandler()
@@ -474,11 +474,11 @@ def write(self, file_object, root_object):
     object_handler.set_reference_size(reference_size)
     offsets = []
     file_object.write('bplist00')
-    for object_ in self.objects:
-        offsets.append(self.file_object.tell())
-        encoded_object = self.object_handler.encode(object_)
+    for object_ in objects:
+        offsets.append(file_object.tell())
+        encoded_object = object_handler.encode(object_)
         file_object.write(encoded_object)
-    table_offset = self.file_object.tell()
+    table_offset = file_object.tell()
     offset_size = get_byte_width(table_offset, 4)
     table = table_handler.encode(offsets, offset_size)
     trailer = trailer_handler.encode(offset_size, table_offset)
