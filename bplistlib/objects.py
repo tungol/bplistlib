@@ -64,14 +64,14 @@ class BinaryPlistBaseHandler(object):
     def unflatten(self, object_):
         return object_
     
-    def collect_all_objects(self, object_, all_objects):
+    def collect_objects(self, object_, objects):
         try:
-            find_with_type(object_, all_objects)
+            find_with_type(object_, objects)
         except ValueError:
-            all_objects.append(object_)
-            self.collect_children(object_, all_objects)
+            objects.append(object_)
+            self.collect_children(object_, objects)
     
-    def collect_children(self, object, all_objects):
+    def collect_children(self, object, objects):
         pass
     
 
@@ -218,15 +218,15 @@ class BinaryPlistContainerObjectHandler(BinaryPlistBaseHandler):
         self.formats = (None, 'B', '>H')
         self.format = None
         self.reference_size = None
-        self.all_objects = None
+        self.objects = None
         self.object_handler = None
     
     def set_reference_size(self, reference_size):
         self.reference_size = reference_size
         self.format = self.formats[reference_size]
     
-    def set_all_objects(self, all_objects):
-        self.all_objects = all_objects
+    def set_objects(self, objects):
+        self.objects = objects
     
     def set_object_handler(self, object_handler):
         self.object_handler = object_handler
@@ -248,14 +248,14 @@ class BinaryPlistContainerObjectHandler(BinaryPlistBaseHandler):
     def flatten_object_list(self, object_list):
         reference_list = []
         for object_ in object_list:
-            reference = find_with_type(object_, self.all_objects)
+            reference = find_with_type(object_, self.objects)
             reference_list.append(reference)
         return reference_list
     
     def unflatten_reference_list(self, references):
         object_list = []
         for reference in references:
-            item = self.all_objects[reference]
+            item = self.objects[reference]
             item = self.object_handler.unflatten(item)
             object_list.append(item)
         return object_list
@@ -282,9 +282,9 @@ class BinaryPlistArrayHandler(BinaryPlistContainerObjectHandler):
     def unflatten(self, array):
         return self.unflatten_reference_list(array)
     
-    def collect_children(self, array, all_objects):
+    def collect_children(self, array, objects):
         for item in array:
-            self.object_handler.collect_all_objects(item, all_objects)
+            self.object_handler.collect_objects(item, objects)
     
 
 class BinaryPlistDictionaryHandler(BinaryPlistContainerObjectHandler):
@@ -317,9 +317,9 @@ class BinaryPlistDictionaryHandler(BinaryPlistContainerObjectHandler):
         values = self.unflatten_reference_list(dictionary.values())
         return dict(zip(keys, values))
     
-    def collect_children(self, dictionary, all_objects):
+    def collect_children(self, dictionary, objects):
         for item in dictionary.keys() + dictionary.values():
-            self.object_handler.collect_all_objects(item, all_objects)
+            self.object_handler.collect_objects(item, objects)
     
 
 class BinaryPlistObjectHandler(object):
@@ -350,9 +350,9 @@ class BinaryPlistObjectHandler(object):
         function = BinaryPlistContainerObjectHandler.set_reference_size
         self.set_on_containers(function, reference_size)
     
-    def set_all_objects(self, all_objects):
-        function = BinaryPlistContainerObjectHandler.set_all_objects
-        self.set_on_containers(function, all_objects)
+    def set_objects(self, objects):
+        function = BinaryPlistContainerObjectHandler.set_objects
+        self.set_on_containers(function, objects)
     
     def set_object_handler(self):
         function = BinaryPlistContainerObjectHandler.set_object_handler
@@ -366,6 +366,15 @@ class BinaryPlistObjectHandler(object):
         object_type, object_length = self.decode_first_byte(file_object)
         handler = self.handlers_by_type_number[object_type]
         return handler.decode(file_object, object_length)
+    
+    def flatten_objects(self, objects):
+        flattened_objects = {}
+        for item_index, item in enumerate(objects):
+            if type(item) in (list, dict):
+                flattened = self.flatten(item)
+                flattened_objects.update({item_index: flattened})
+        for index, object_ in flattened_objects.items():
+            objects[index] = object_
     
     def flatten(self, object_):
         handler = self.handlers_by_type[type(object_)]
@@ -383,159 +392,104 @@ class BinaryPlistObjectHandler(object):
             object_length = self.decode(file_object)
         return object_type, object_length
     
-    def collect_all_objects(self, object_, all_objects):
+    def collect_objects(self, object_, objects):
         handler = self.handlers_by_type[type(object_)]
-        handler.collect_all_objects(object_, all_objects)
+        handler.collect_objects(object_, objects)
     
 
-class BinaryPlistParser(object):
-    '''
-    A parser object for binary plist files. Initialize, then parse an open
-    file object.
-    '''
+class BinaryPlistTableHandler(object):
+    def __init__(self):
+        self.formats = (None, 'B', '>H', 'BBB', '>L')
     
-    def __init__(self, file_object):
-        '''Parse an open file object. Seeking needs to be supported.'''
-        self.object_handler = BinaryPlistObjectHandler()
-        self.file_object = file_object
-        self.all_objects = []
+    def decode(self, file_object, offset_size, length, table_offset):
+        file_object.seek(table_offset)
+        offset_format = self.formats[offset_size]
+        table_format = offset_format * length
+        raw = file_object.read(offset_size * length)
+        offsets = unpack(table_format, raw)
+        if offset_size == 3:
+            offsets = zip([offsets[x::3] for x in range(3)])
+            offsets = [o[0] * 0x100 + o[1] * 0x10 + o[2] for o in offsets]
+        return offsets
     
-    def read(self):
-        trailer = self.read_trailer()
-        self.object_handler.set_reference_size(trailer[1])
-        reference_table = self.read_reference_table(trailer)
-        for offset in reference_table:
-            self.file_object.seek(offset)
-            object_ = self.object_handler.decode(self.file_object)
-            self.all_objects.append(object_)
-        self.object_handler.set_all_objects(self.all_objects)
-        root_object_number = trailer[3]
-        root_object = self.all_objects[root_object_number]
-        return self.object_handler.unflatten(root_object)
-    
-    def read_trailer(self):
-        self.file_object.seek(-32, 2)
-        trailer = unpack('>6xBB4xL4xL4xL', self.file_object.read())
-        return trailer
-    
-    def read_reference_table(self, trailer):
-        offset_size = trailer[0]
-        number_of_objects = trailer[2]
-        reference_table_offset = trailer[4]
-        formats = (None, 'B', '>H', 'BBB', '>L')
-        self.file_object.seek(reference_table_offset)
-        reference_table = []
-        for i in range(number_of_objects):
-            offset = unpack(formats[offset_size],
-                            self.file_object.read(offset_size))
-            if offset_size == 3:
-                offset = offset[0] * 0x100 + offset[1] * 0x10 + offset[2]
-            else:
-                offset = offset[0]
-            reference_table.append(offset)
-        return reference_table
-    
-
-class BinaryPlistWriter(object):
-    '''
-    A writer object for binary plist files. Initialize with an open file
-    object, then write the root object to that file.
-    '''
-    
-    def __init__(self, file_object):
-        '''
-        Keep track of the file object, plus some lists that will be needed
-        later.
-        '''
-        self.object_handler = BinaryPlistObjectHandler()
-        self.file_object = file_object
-        self.all_objects = []
-        self.offsets = []
-        self.reference_size = None
-        self.offset_size = None
-        self.reference_table_offset = None
-    
-    def write(self, root_object):
-        '''Write the root_object to self.file_object.'''
-        self.object_handler.collect_all_objects(root_object, self.all_objects)
-        self.object_handler.set_all_objects(self.all_objects)
-        self.flatten()
-        self.set_reference_size()
-        self.file_object.write('bplist00')
-        for object_ in self.all_objects:
-            self.file_object.write(self.encode(object_))
-        self.file_object.write(self.build_reference_table())
-        self.file_object.write(self.build_trailer())
-    
-    def flatten(self):
-        '''
-        Take all dictionaries and arrays in self.all_objects and replace each
-        child object with the index of that child object in self.all_objects.
-        '''
-        flattened_objects = {}
-        for item_index, item in enumerate(self.all_objects):
-            if type(item) in (list, dict):
-                flattened = self.object_handler.flatten(item)
-                flattened_objects.update({item_index: flattened})
-        for index, object_ in flattened_objects.items():
-            self.all_objects[index] = object_
-    
-    def set_reference_size(self):
-        '''
-        Set self.reference size by finding the minimum needed to fit all the
-        objects in self.all_objects.
-        '''
-        number_of_objects = len(self.all_objects)
-        if 0 <= number_of_objects < 256:
-            self.reference_size = 1
-        elif 256 <= number_of_objects < 65535:
-            self.reference_size = 2
-        else:
-            raise ValueError
-        self.object_handler.set_reference_size(self.reference_size)
-    
-    def encode(self, object_):
-        '''Return the encoded form of an object.'''
-        self.offsets.append(self.file_object.tell())
-        return self.object_handler.encode(object_)
-    
-    def set_offset_size(self):
-        '''Set the number of bytes used to store an offset value.'''
-        if 0 <= self.reference_table_offset < 0x100:
-            self.offset_size = 1
-        elif 0x100 <= self.reference_table_offset < 0x10000:
-            self.offset_size = 2
-        elif 0x10000 <= self.reference_table_offset < 0x1000000:
-            self.offset_size = 3
-        elif 0x1000000 <= self.reference_table_offset < 0x100000000:
-            self.offset_size = 4
-        else:
-            raise ValueError
-    
-    def build_reference_table(self):
-        '''Return the encoded reference table.'''
-        self.reference_table_offset = self.file_object.tell()
-        self.set_offset_size()
-        formats = (None, 'B', '>H', 'BBB', '>L')
-        encoded_table = []
-        for offset in self.offsets:
-            if self.offset_size == 3:
+    def encode(self, offsets, offset_size):
+        offset_format = self.formats[offset_size]
+        table_format = offset_format * len(offsets)
+        if offset_size == 3:
+            new_offsets = []
+            for offset in offsets[:]:
                 first = offset // 0x100
                 second = (offset % 0x100) // 0x10
                 third = (offset % 0x100) % 0x10
-                offset = (first, second, third)
-            encoded_offset = pack(formats[self.offset_size], offset)
-            encoded_table.append(encoded_offset)
-        return ''.join(encoded_table)
+                new_offsets += [first, second, third]
+            offsets = new_offsets
+        encoded = pack(table_format, *offsets)
+        return encoded
     
-    def build_trailer(self):
-        '''Return the encoded final 32 bytes of a binary plist.'''
-        number_of_objects = len(self.all_objects)
+
+class BinaryPlistTrailerHandler(object):
+    def __init__(self):
+        self.format = '>6xBB4xL4xL4xL'
+    
+    def decode(self, file_object):
+        file_object.seek(-32, 2)
+        trailer = unpack(self.format, file_object.read())
+        return trailer
+    
+    def encode(self, offset_size, reference_size, objects, table_offset):
+        number_of_objects = len(objects)
         root_object = 0
-        return pack('6xBB4xL4xL4xL', self.offset_size,
-                    self.reference_size, number_of_objects,
-                    root_object, self.reference_table_offset)
+        return pack('6xBB4xL4xL4xL', offset_size, reference_size,
+                    number_of_objects, root_object, table_offset)
     
+
+def read(self, file_object):
+    object_handler = BinaryPlistObjectHandler()
+    table_handler = BinaryPlistTableHandler()
+    trailer_handler = BinaryPlistTrailerHandler()
+    trailer = trailer_handler.decode(file_object)
+    object_handler.set_reference_size(trailer[1])
+    table = table_handler.decode(file_object, trailer[0], 
+                                 trailer[2], trailer[4])
+    objects = []
+    for offset in table:
+        file_object.seek(offset)
+        object_ = object_handler.decode(file_object)
+        objects.append(object_)
+    object_handler.set_objects(objects)
+    root_object_number = trailer[3]
+    root_object = objects[root_object_number]
+    return object_handler.unflatten(root_object)
+
+def write(self, file_object, root_object):
+    '''Write the root_object to file_object.'''
+    object_handler = BinaryPlistObjectHandler()
+    table_handler = BinaryPlistTableHandler()
+    trailer_handler = BinaryPlistTrailerHandler()
+    objects = []
+    object_handler.collect_objects(root_object, objects)
+    object_handler.set_objects(objects)
+    object_handler.flatten_objects(objects)
+    reference_size = get_byte_width(len(objects), 2)
+    object_handler.set_reference_size(reference_size)
+    offsets = []
+    file_object.write('bplist00')
+    for object_ in self.objects:
+        offsets.append(self.file_object.tell())
+        encoded_object = self.object_handler.encode(object_)
+        file_object.write(encoded_object)
+    table_offset = self.file_object.tell()
+    offset_size = get_byte_width(table_offset, 4)
+    table = table_handler.encode(offsets, offset_size)
+    trailer = trailer_handler.encode(offset_size, table_offset)
+    file_object.write(table)
+    file_object.write(trailer)
+
+def get_byte_width(value_to_store, max_byte_width):
+    for byte_width in range(max_byte_width):
+        if 0x100 ** byte_width <= value_to_store < 0x100 ** (byte_width + 1):
+            return byte_width + 1
+    raise ValueError
 
 def find_with_type(value, list_):
     '''
