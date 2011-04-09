@@ -24,16 +24,10 @@ class BaseHandler(object):
     
     def encode(self, object_):
         '''Return the encoded version of object_.'''
-        object_ = self.encode_preprocess(object_)
         object_length = self.get_object_length(object_)
         first_byte = self.encode_first_byte(self.type_number, object_length)
         body = self.encode_body(object_, object_length)
-        body = self.encode_postprocess(body)
         return ''.join((first_byte, body))
-    
-    def encode_preprocess(self, object_):
-        '''Hook for any preprocessing needed on object_ before encoding.'''
-        return object_
     
     def get_object_length(self, object_):
         '''Hook for calculating the object length of the object.'''
@@ -59,10 +53,6 @@ class BaseHandler(object):
         '''Hook for encoding the body of the object.'''
         return ''
     
-    def encode_postprocess(self, body):
-        '''Hook for any postprocessing on the encoded body needed.'''
-        return body
-    
     def decode(self, file_object, object_length):
         '''
         Read out an encoded object from a file and return the decoded 
@@ -70,9 +60,7 @@ class BaseHandler(object):
         '''
         byte_length = self.get_byte_length(object_length)
         raw = file_object.read(byte_length)
-        raw = self.decode_preprocess(raw)
         object_ = self.decode_body(raw, object_length)
-        object_ = self.decode_postprocess(object_)
         return object_
     
     def get_byte_length(self, object_length):
@@ -81,19 +69,9 @@ class BaseHandler(object):
         '''
         return object_length
     
-    def decode_preprocess(self, raw):
-        '''
-        Hook for any preprocessing needed on the raw bytes before decoding.
-        '''
-        return raw
-    
     def decode_body(self, raw, object_length):
         '''Hook for decoding the body of an encoded object.'''
         return raw
-    
-    def decode_postprocess(self, object_):
-        '''Hook for any postprocessing needed on the decoded object.'''
-        return object_
     
     def unflatten(self, object_, objects):
         '''Hook for unflattening object_ in the context of objects.'''
@@ -151,15 +129,33 @@ class NumberHandler(BaseHandler):
     
     def encode_body(self, value, object_length):
         '''Pack the given number appropriately for the object length.'''
-        return pack(self.formats[object_length], value)
+        value = self.preprocess(value)
+        body = pack(self.formats[object_length], value)
+        body = self.process_bytes(body)
+        return body
     
     def decode_body(self, raw, object_length):
         '''Unpack the encoded number appropriately for the object length.'''
-        return unpack(self.formats[object_length], raw)[0]
+        raw = self.process_bytes(raw)
+        body = unpack(self.formats[object_length], raw)[0]
+        body = self.postprocess(body)
+        return body
+    
+    def process_bytes(self, bytes):
+        '''Hook for floats to reverse the byte order.'''
+        return bytes
     
     def get_byte_length(self, object_length):
         '''Calculate the byte length from the object length for a number.'''
         return 1 << object_length
+    
+    def postprocess(self, body):
+        '''Hook to convert from floats to date objects.'''
+        return body
+    
+    def preprocess(self, value):
+        '''Hook to convert from date objects to floats.'''
+        return value
     
 
 class IntegerHandler(NumberHandler):
@@ -194,6 +190,7 @@ class FloatHandler(NumberHandler):
     
     def get_object_length(self, float_):
         '''Return the object length for a float.'''
+        float_ = self.preprocess(float_)
         single_max = (2 - 2 ** (-23)) * (2 ** 127)
         single_min = 2 ** -126
         double_max = (2 - 2 ** (-52)) * (2 ** 1023)
@@ -206,13 +203,9 @@ class FloatHandler(NumberHandler):
             return 3
         raise ValueError
     
-    def encode_postprocess(self, body):
+    def process_bytes(self, body):
         '''Reverse the byte order.'''
         return body[::-1]
-    
-    def decode_preprocess(self, raw):
-        '''Reverse the byte order.'''
-        return raw[::-1]
     
 
 class DateHandler(FloatHandler):
@@ -229,12 +222,12 @@ class DateHandler(FloatHandler):
         self.epoch_adjustment = 978307200.0
         self.types = datetime
     
-    def encode_preprocess(self, date):
+    def preprocess(self, date):
         '''Convert a datetime object to seconds since 1 Jan 2001.'''
         seconds = mktime(date.timetuple())
         return seconds - self.epoch_adjustment
     
-    def decode_postprocess(self, seconds):
+    def postprocess(self, seconds):
         '''Convert seconds since 1 Jan 2001 to a datetime object.'''
         seconds += self.epoch_adjustment
         return datetime.fromtimestamp(seconds)
