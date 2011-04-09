@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # encoding: utf-8
 '''
 bplistlib: Read and write binary .plist files.
@@ -19,6 +18,9 @@ this, these functions will attempt to determine whether the plist is binary or
 xml. If you know which you are reading, you can pass binary=True or
 binary=False in as an additional argument, for binary or xml plists,
 respectively.
+
+Known issues:
+The actual plist format is more restrictive than is enforced here.
 '''
 
 
