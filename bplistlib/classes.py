@@ -12,36 +12,6 @@ from .functions import find_with_type, get_byte_width
 from .functions import flatten_object_list, unflatten_reference_list
 
 
-class ReferencesHandler(object):
-    """A handler class for lists of references."""
-    
-    def __init__(self):
-        self.formats = (None, 'B', 'H')
-        self.endian = '>'
-        self.format = None
-        self.reference_size = None
-    
-    def set_reference_size(self, reference_size):
-        """Save the given reference size, and set self.format appropriately."""
-        self.reference_size = reference_size
-        self.format = self.formats[reference_size]
-    
-    def encode(self, references):
-        """
-        Return an encoded list of reference values. Used in encoding arrays and
-        dictionaries.
-        """
-        format_ = self.endian + self.format * len(references)
-        encoded = pack(format_, *references)
-        return encoded
-    
-    def decode(self, raw, object_length):
-        """Decode the given reference list."""
-        format_ = self.format * object_length
-        references = unpack(format_, raw)
-        return list(references)
-    
-
 class BooleanHandler(object):
     """Handler for boolean types in a binary plist."""
     
@@ -250,7 +220,10 @@ class ArrayHandler(object):
         self.type_number = 0xa
         self.types = list
         self.object_handler = object_handler
-        self.references_handler = object_handler.references_handler
+        self.formats = (None, 'B', 'H')
+        self.endian = '>'
+        self.format = None
+        self.reference_size = None
     
     def get_object_length(self, array):
         """Return the length of the list given."""
@@ -258,15 +231,24 @@ class ArrayHandler(object):
     
     def get_byte_length(self, object_length):
         """Return the object length times the reference size."""
-        return object_length * self.references_handler.reference_size
+        return object_length * self.reference_size
     
     def encode_body(self, array, object_length):
         """Encode the flattened array as a single reference list."""
-        return self.references_handler.encode(array)
+        format_ = self.endian + self.format * len(array)
+        encoded = pack(format_, *array)
+        return encoded
     
     def decode_body(self, raw, object_length):
         """Decode the reference list into a flattened array."""
-        return self.references_handler.decode(raw, object_length)
+        format_ = self.format * object_length
+        array = unpack(format_, raw)
+        return list(array)
+    
+    def set_reference_size(self, reference_size):
+        """Save the given reference size, and set self.format appropriately."""
+        self.reference_size = reference_size
+        self.format = self.formats[reference_size]
     
     def flatten(self, array, objects):
         """Flatten the array into a list of references."""
@@ -306,7 +288,7 @@ class DictionaryHandler(ArrayHandler):
         """
         Decode the two reference lists in raw into a flattened dictionary.
         """
-        half = object_length * self.references_handler.reference_size
+        half = ArrayHandler.get_byte_length(self, object_length)
         keys = ArrayHandler.decode_body(self, raw[:half], object_length)
         values = ArrayHandler.decode_body(self, raw[half:], object_length)
         return dict(zip(keys, values))
@@ -334,7 +316,6 @@ class ObjectHandler(object):
     
     def __init__(self):
         """Intialize one of every (useful) handler class."""
-        self.references_handler = ReferencesHandler()
         handlers = [BooleanHandler(), IntegerHandler(), FloatHandler(),
                     DateHandler(), DataHander(), StringHandler(),
                     UnicodeStringHandler(), ArrayHandler(self),
@@ -351,7 +332,10 @@ class ObjectHandler(object):
     
     def set_reference_size(self, reference_size):
         """Set the reference size on the references handler."""
-        self.references_handler.set_reference_size(reference_size)
+        array_handler = self.handlers_by_type[list]
+        dict_handler = self.handlers_by_type[dict]
+        array_handler.set_reference_size(reference_size)
+        dict_handler.set_reference_size(reference_size)
     
     def encode(self, object_):
         """Use the appropriate handler to encode the given object."""
