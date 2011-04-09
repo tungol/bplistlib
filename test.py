@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
-'''Test suite for bplistlib. Pretty good coverage.'''
+"""Test suite for bplistlib. Pretty good coverage."""
 
 from datetime import datetime
 from plistlib import Data

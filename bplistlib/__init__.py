@@ -1,5 +1,5 @@
 # encoding: utf-8
-'''
+"""
 bplistlib: Read and write binary .plist files.
 
 This module is a drop-in enhancement of the plistlib module in the standard
@@ -21,7 +21,7 @@ respectively.
 
 Known issues:
 The actual plist format is more restrictive than is enforced here.
-'''
+"""
 
 
 from .public import readPlist, readPlistFromString
