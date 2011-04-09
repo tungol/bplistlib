@@ -2,6 +2,7 @@ Available types
 ===============
 
 The following types are available in a binary plist:
+
  1. boolean
  2. integer
  3. float
@@ -24,17 +25,23 @@ A binary plist file has four sections:
 
 3. Third is the concatenation of the offsets of all of the elements in the plist, each offset given as an unsigned integer in a fixed number of bytes. An object in the plist has a reference number that is based on the 0-based indexing of this table, e.g. object number 0 is the object at the offset given first in this table.
 
-4. The final 32 bytes have the following format:
+4. The final 32 bytes, the "trailer" section.
 
-  * 6 bytes of \x00 padding
-  * a 1 byte integer which is the number of bytes for an offset value. Valid values are 1, 2, 3, or 4. Offset values are encoded as unsigned, big endian integers.
-  * a 1 byte integer which is the number of bytes for an object reference number. Valid values are 1 or 2. Reference numbers are encoded as unsigned, bug endian integers.
-  * 4 bytes of \x00 padding
-  * a 4 byte integer which is the number of objects in the plist
-  * 4 bytes of \x00 padding
-  * a 4 byte integer which is the reference number of the root object in the plist. This is usually zero.
-  * 4 bytes of \x00 padding
-  * a 4 byte integer which is the offset in the file of the start of the offset table, named above as the third element in a binary plist
+
+Trailer
+=======
+
+The final 32 bytes of a binary plist have the following format:
+
+  1. 6 bytes of \x00 padding
+  2. a 1 byte integer which is the number of bytes for an offset value. Valid values are 1, 2, 3, or 4. Offset values are encoded as unsigned, big endian integers.
+  3. a 1 byte integer which is the number of bytes for an object reference number. Valid values are 1 or 2. Reference numbers are encoded as unsigned, bug endian integers.
+  4. 4 bytes of \x00 padding
+  5. a 4 byte integer which is the number of objects in the plist
+  6. 4 bytes of \x00 padding
+  7. a 4 byte integer which is the reference number of the root object in the plist. This is usually zero.
+  8. 4 bytes of \x00 padding
+  9. a 4 byte integer which is the offset in the file of the start of the offset table, named above as the third element in a binary plist
 
 
 Object encoding
