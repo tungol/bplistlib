@@ -1,5 +1,8 @@
 # encoding: utf-8
-
+'''
+This file contains classes that know how to handle various different parts of
+a binary plist file.
+'''
 
 from struct import pack, unpack
 from datetime import datetime
@@ -9,8 +12,18 @@ from .functions import find_with_type, get_byte_width
 
 
 class BinaryPlistBaseHandler(object):
+    '''A base class for object handlers. Does pretty much nothing itself.'''
+    
+    def __init__(self):
+        '''
+        These values should be overwritten by subclasses. They are here to show
+        what's needed as a minimum.
+        '''
+        self.type_number = None
+        self.types = None
     
     def encode(self, object_):
+        '''Return the encoded version of object_.'''
         object_ = self.encode_preprocess(object_)
         object_length = self.get_object_length(object_)
         first_byte = self.encode_first_byte(self.type_number, object_length)
@@ -19,9 +32,11 @@ class BinaryPlistBaseHandler(object):
         return ''.join((first_byte, body))
     
     def encode_preprocess(self, object_):
+        '''Hook for any preprocessing needed on object_ before encoding.'''
         return object_
     
     def get_object_length(self, object_):
+        '''Hook for calculating the object length of the object.'''
         return len(object_)
     
     def encode_first_byte(self, type_number, length):
@@ -31,7 +46,7 @@ class BinaryPlistBaseHandler(object):
         '''
         big = False
         if length >= 15:
-            real_length = self.encode_integer(length)
+            real_length = self.encode_integer(length)  # TODO: broken
             length = 15
             big = True
         value = (type_number << 4) + length
@@ -41,12 +56,18 @@ class BinaryPlistBaseHandler(object):
         return encoded
     
     def encode_body(self, object_, object_length):
+        '''Hook for encoding the body of the object.'''
         return ''
     
     def encode_postprocess(self, body):
+        '''Hook for any postprocessing on the encoded body needed.'''
         return body
     
     def decode(self, file_object, object_length):
+        '''
+        Read out an encoded object from a file and return the decoded 
+        version.
+        '''
         byte_length = self.get_byte_length(object_length)
         raw = file_object.read(byte_length)
         raw = self.decode_preprocess(raw)
@@ -55,21 +76,34 @@ class BinaryPlistBaseHandler(object):
         return object_
     
     def get_byte_length(self, object_length):
+        '''
+        Hook for conversion between the object length and the byte length.
+        '''
         return object_length
     
     def decode_preprocess(self, raw):
+        '''
+        Hook for any preprocessing needed on the raw bytes before decoding.
+        '''
         return raw
     
     def decode_body(self, raw, object_length):
+        '''Hook for decoding the body of an encoded object.'''
         return raw
     
     def decode_postprocess(self, object_):
+        '''Hook for any postprocessing needed on the decoded object.'''
         return object_
     
     def unflatten(self, object_, objects):
+        '''Hook for unflattening object_ in the context of objects.'''
         return object_
     
     def collect_objects(self, object_, objects):
+        '''
+        If object is not already in objects, add it and continue on with any
+        children it has. Otherwise do nothing.
+        '''
         try:
             find_with_type(object_, objects)
         except ValueError:
@@ -77,12 +111,15 @@ class BinaryPlistBaseHandler(object):
             self.collect_children(object_, objects)
     
     def collect_children(self, object_, objects):
+        '''Hook for collecting child objects from objects that have those.'''
         pass
     
 
 class BinaryPlistBooleanHandler(BinaryPlistBaseHandler):
+    '''Handler for boolean types in a binary plist.'''
     
     def __init__(self):
+        '''Nothing to see here.'''
         BinaryPlistBaseHandler.__init__(self)
         self.type_number = 0
         self.types = (bool, type(None))
@@ -95,30 +132,41 @@ class BinaryPlistBooleanHandler(BinaryPlistBaseHandler):
         return self.boolean_to_integer[boolean]
     
     def get_byte_length(self, object_length):
+        '''The byte length for a boolean is always zero.'''
         return 0
     
     def decode_body(self, raw, object_length):
+        '''Return the decoded boolean value.'''
         return self.integer_to_boolean[object_length]
     
 
 class BinaryPlistNumberHandler(BinaryPlistBaseHandler):
+    '''Base class for the different numerical types.'''
     
     def __init__(self):
+        '''Nothing to see here.'''
         BinaryPlistBaseHandler.__init__(self)
+        # Subclasses should overwrite this:
+        self.formats = None
     
-    def encode_body(self, integer, object_length):
-        return pack(self.formats[object_length], integer)
+    def encode_body(self, value, object_length):
+        '''Pack the given number appropriately for the object length.'''
+        return pack(self.formats[object_length], value)
     
     def decode_body(self, raw, object_length):
+        '''Unpack the encoded number appropriately for the object length.'''
         return unpack(self.formats[object_length], raw)[0]
     
     def get_byte_length(self, object_length):
+        '''Calculate the byte length from the object length for a number.'''
         return 1 << object_length
     
 
 class BinaryPlistIntegerHandler(BinaryPlistNumberHandler):
+    '''Handler class for integers. Subclass of the number handler.'''
     
     def __init__(self):
+        '''Nothing to see here.'''
         BinaryPlistNumberHandler.__init__(self)
         self.type_number = 1
         self.formats = ('b', '>h', '>l', '>q')
@@ -135,8 +183,10 @@ class BinaryPlistIntegerHandler(BinaryPlistNumberHandler):
     
 
 class BinaryPlistFloatHandler(BinaryPlistNumberHandler):
+    '''Handler class for floats. Subclass of the number handler.'''
     
     def __init__(self):
+        '''Nothing to see here.'''
         BinaryPlistNumberHandler.__init__(self)
         self.type_number = 2
         self.formats = (None, None, 'f', 'd')
@@ -157,15 +207,22 @@ class BinaryPlistFloatHandler(BinaryPlistNumberHandler):
         raise ValueError
     
     def encode_postprocess(self, body):
+        '''Reverse the byte order.'''
         return body[::-1]
     
     def decode_preprocess(self, raw):
+        '''Reverse the byte order.'''
         return raw[::-1]
     
 
 class BinaryPlistDateHandler(BinaryPlistFloatHandler):
+    '''
+    Handler class for dates. Subclass of the float handler because dates are
+    stored internally as the floating point number of seconds since the epoch.
+    '''
     
     def __init__(self):
+        '''Nothing to see here.'''
         BinaryPlistFloatHandler.__init__(self)
         self.type_number = 3
         # seconds between 1 Jan 1970 and 1 Jan 2001
@@ -173,61 +230,77 @@ class BinaryPlistDateHandler(BinaryPlistFloatHandler):
         self.types = datetime
     
     def encode_preprocess(self, date):
+        '''Convert a datetime object to seconds since 1 Jan 2001.'''
         seconds = mktime(date.timetuple())
         return seconds - self.epoch_adjustment
     
     def decode_postprocess(self, seconds):
+        '''Convert seconds since 1 Jan 2001 to a datetime object.'''
         seconds += self.epoch_adjustment
         return datetime.fromtimestamp(seconds)
     
 
 class BinaryPlistDataHander(BinaryPlistBaseHandler):
+    '''Handler class for arbitrary binary data. Uses plistlib.Data.'''
     
     def __init__(self):
+        '''Nothing to see here.'''
         BinaryPlistBaseHandler.__init__(self)
         self.type_number = 4
-        self.types = type(Data(''))  # ugly
+        self.types = type(Data(''))  # TODO: ugly
     
     def get_object_length(self, data):
+        '''Get the length of the data stored inside the Data object.'''
         return len(data.data)
     
     def encode_body(self, data, object_length):
+        '''Get the binary data from the Data object.'''
         return data.data
     
     def decode_body(self, raw, object_length):
+        '''Store the binary data in a Data object.'''
         return Data(raw)
     
 
 class BinaryPlistStringHandler(BinaryPlistBaseHandler):
+    '''Handler class for strings.'''
     
     def __init__(self):
+        '''Nothing to see here.'''
         BinaryPlistBaseHandler.__init__(self)
         self.type_number = 5
         self.encoding = 'ascii'
         self.types = str
     
     def encode_body(self, string, object_length):
+        '''Return the encoded version of string, according to self.encoding.'''
         return string.encode(self.encoding)
     
 
 class BinaryPlistUnicodeStringHandler(BinaryPlistStringHandler):
+    '''Handler class for unicode strings. Subclass of the string handler.'''
     
     def __init__(self):
+        '''Nothing to see here.'''
         BinaryPlistStringHandler.__init__(self)
         self.type_number = 6
         self.encoding = 'utf_16_be'
         self.types = unicode
     
     def get_byte_length(self, object_length):
+        '''Return twice the object length.'''
         return object_length * 2
     
     def decode_body(self, raw, object_length):
+        '''Decode the raw string according to self.encoding.'''
         return raw.decode(self.encoding)
     
 
 class BinaryPlistContainerObjectHandler(BinaryPlistBaseHandler):
+    '''Base class for container handlers.'''
     
     def __init__(self):
+        '''Nothing to see here.'''
         BinaryPlistBaseHandler.__init__(self)
         self.formats = (None, 'B', '>H')
         self.format = None
@@ -235,10 +308,12 @@ class BinaryPlistContainerObjectHandler(BinaryPlistBaseHandler):
         self.object_handler = None
     
     def set_reference_size(self, reference_size):
+        '''Save the given reference size, and set self.format appropriately.'''
         self.reference_size = reference_size
         self.format = self.formats[reference_size]
     
     def set_object_handler(self, object_handler):
+        '''Use the given object handler for handling child objects.'''
         self.object_handler = object_handler
     
     def encode_reference_list(self, references):
@@ -251,11 +326,13 @@ class BinaryPlistContainerObjectHandler(BinaryPlistBaseHandler):
         return encoded
     
     def decode_reference_list(self, raw, object_length):
+        '''Decode the given reference list.'''
         format_ = self.format * object_length
         references = unpack(format_, raw)
         return list(references)
     
     def flatten_object_list(self, object_list, objects):
+        '''Convert a list of objects to a list of references.'''
         reference_list = []
         for object_ in object_list:
             reference = find_with_type(object_, objects)
@@ -263,6 +340,7 @@ class BinaryPlistContainerObjectHandler(BinaryPlistBaseHandler):
         return reference_list
     
     def unflatten_reference_list(self, references, objects):
+        '''Convert a list of references to a list of objects.'''
         object_list = []
         for reference in references:
             item = objects[reference]
@@ -272,71 +350,91 @@ class BinaryPlistContainerObjectHandler(BinaryPlistBaseHandler):
     
 
 class BinaryPlistArrayHandler(BinaryPlistContainerObjectHandler):
+    '''Handler class for arrays. Subclasses the container handler.'''
     
     def __init__(self):
+        '''Nothing to see here.'''
         BinaryPlistContainerObjectHandler.__init__(self)
         self.type_number = 0xa
         self.types = list
     
     def get_byte_length(self, object_length):
+        '''Return the object length times the reference size.'''
         return object_length * self.reference_size
     
     def encode_body(self, array, object_length):
+        '''Encode the flattened array as a single reference list.'''
         return self.encode_reference_list(array)
     
     def decode_body(self, raw, object_length):
+        '''Decode the reference list into a flattened array.'''
         return self.decode_reference_list(raw, object_length)
     
     def flatten(self, array, objects):
+        '''Flatten the array into a list of references.'''
         return self.flatten_object_list(array, objects)
     
     def unflatten(self, array, objects):
+        '''Unflatten the list of references into a list of objects.'''
         return self.unflatten_reference_list(array, objects)
     
     def collect_children(self, array, objects):
+        '''Collect all the items in the array.'''
         for item in array:
             self.object_handler.collect_objects(item, objects)
     
 
 class BinaryPlistDictionaryHandler(BinaryPlistContainerObjectHandler):
+    '''Handler class for dictionaries. Subclasses the container handler.'''
     
     def __init__(self):
+        '''Nothing to see here.'''
         BinaryPlistContainerObjectHandler.__init__(self)
         self.type_number = 0xd
         self.types = dict
     
     def get_byte_length(self, object_length):
+        '''Return twice the object length times the reference size.'''
         return object_length * self.reference_size * 2
     
     def encode_body(self, dictionary, object_length):
+        '''Encode the flattened dictionary as two reference lists.'''
         keys = self.encode_reference_list(dictionary.keys())
         values = self.encode_reference_list(dictionary.values())
         return ''.join((keys, values))
     
     def decode_body(self, raw, object_length):
+        '''
+        Decode the two reference lists in raw into a flattened dictionary.
+        '''
         half = object_length * self.reference_size
         keys = self.decode_reference_list(raw[:half], object_length)
         values = self.decode_reference_list(raw[half:], object_length)
         return dict(zip(keys, values))
     
     def flatten(self, dictionary, objects):
+        '''Flatten a dictionary into a dictionary of references.'''
         keys = self.flatten_object_list(dictionary.keys(), objects)
         values = self.flatten_object_list(dictionary.values(), objects)
         return dict(zip(keys, values))
     
     def unflatten(self, dictionary, objects):
+        '''Unflatten a dictionary into a dictionary of objects.'''
         keys = self.unflatten_reference_list(dictionary.keys(), objects)
         values = self.unflatten_reference_list(dictionary.values(), objects)
         return dict(zip(keys, values))
     
     def collect_children(self, dictionary, objects):
+        '''Collect all the keys and values in dictionary.'''
         for item in dictionary.keys() + dictionary.values():
             self.object_handler.collect_objects(item, objects)
     
 
 class BinaryPlistObjectHandler(object):
+    '''A master handler class for all of the object handler classes.'''
     
     def __init__(self):
+        '''Intialize one of every (useful) handler class.'''
         handlers = [BinaryPlistBooleanHandler(), BinaryPlistIntegerHandler(),
                     BinaryPlistFloatHandler(), BinaryPlistDateHandler(),
                     BinaryPlistDataHander(), BinaryPlistStringHandler(),
@@ -354,29 +452,37 @@ class BinaryPlistObjectHandler(object):
         self.set_object_handler()
     
     def set_on_containers(self, setter_function, value):
+        '''
+        Use setter_function to set value on array and dictionary handlers.
+        '''
         array_handler = self.handlers_by_type[list]
         dictionary_handler = self.handlers_by_type[dict]
         setter_function(array_handler, value)
         setter_function(dictionary_handler, value)
     
     def set_reference_size(self, reference_size):
+        '''Set the reference size on the container handlers.'''
         function = BinaryPlistContainerObjectHandler.set_reference_size
         self.set_on_containers(function, reference_size)
     
     def set_object_handler(self):
+        '''Set the object handler on the container handlers.'''
         function = BinaryPlistContainerObjectHandler.set_object_handler
         self.set_on_containers(function, self)
     
     def encode(self, object_):
+        '''Use the appropriate handler to encode the given object.'''
         handler = self.handlers_by_type[type(object_)]
         return handler.encode(object_)
     
     def decode(self, file_object):
+        '''Start reading in file_object, and decode the object found.'''
         object_type, object_length = self.decode_first_byte(file_object)
         handler = self.handlers_by_type_number[object_type]
         return handler.decode(file_object, object_length)
     
     def flatten_objects(self, objects):
+        '''Flatten all objects in objects.'''
         flattened_objects = {}
         for item_index, item in enumerate(objects):
             if type(item) in (list, dict):
@@ -386,14 +492,19 @@ class BinaryPlistObjectHandler(object):
             objects[index] = object_
     
     def flatten(self, object_, objects):
+        '''Flatten the given object, using the appropriate handler.'''
         handler = self.handlers_by_type[type(object_)]
         return handler.flatten(object_, objects)
     
     def unflatten(self, object_, objects):
+        '''Unflatten the give object, using the appropriate handler.'''
         handler = self.handlers_by_type[type(object_)]
         return handler.unflatten(object_, objects)
     
     def decode_first_byte(self, file_object):
+        '''
+        Get the type number and object length from the first byte of an object.
+        '''
         value = unpack('B', file_object.read(1))[0]
         object_type = value >> 4
         object_length = value & 0xF
@@ -402,16 +513,25 @@ class BinaryPlistObjectHandler(object):
         return object_type, object_length
     
     def collect_objects(self, object_, objects):
+        '''
+        Collect all the objects in object_ into objects, using the appropriate
+        handler.
+        '''
         handler = self.handlers_by_type[type(object_)]
         handler.collect_objects(object_, objects)
     
 
 class BinaryPlistTableHandler(object):
+    '''A handler class for the offset table found in binary plists.'''
     
     def __init__(self):
+        '''Nothin to see here.'''
         self.formats = (None, 'B', '>H', 'BBB', '>L')
     
     def decode(self, file_object, offset_size, length, table_offset):
+        '''
+        Decode the offset table in file_object. Returns a list of offsets.
+        '''
         file_object.seek(table_offset)
         offset_format = self.formats[offset_size]
         table_format = offset_format * length
@@ -423,6 +543,7 @@ class BinaryPlistTableHandler(object):
         return offsets
     
     def encode(self, offsets):
+        '''Return the encoded form of a list of offsets.'''
         offset_size = get_byte_width(max(offsets), 4)
         offset_format = self.formats[offset_size]
         table_format = offset_format * len(offsets)
@@ -439,20 +560,27 @@ class BinaryPlistTableHandler(object):
     
 
 class BinaryPlistTrailerHandler(object):
+    '''A handler class for the 'trailer' found in binary plists.'''
     
     def __init__(self):
+        '''Nothing to see here.'''
         self.format = '>6xBB4xL4xL4xL'
     
     def decode(self, file_object):
+        '''Decode the final 32 bytes of file_object.'''
         file_object.seek(-32, 2)
         trailer = unpack(self.format, file_object.read())
         return trailer
     
     def encode(self, offsets, table_offset):
+        '''
+        Encode the trailer for a binary plist file with given offsets and
+        table_offet.
+        '''
         offset_size = get_byte_width(max(offsets), 4)
         number_of_objects = len(offsets)
+        reference_size = get_byte_width(number_of_objects, 2)
         root_object = 0
-        reference_size = get_byte_width(len(offsets), 2)
         return pack('6xBB4xL4xL4xL', offset_size, reference_size,
                     number_of_objects, root_object, table_offset)
     
