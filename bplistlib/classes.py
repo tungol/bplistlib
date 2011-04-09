@@ -10,43 +10,58 @@ from plistlib import Data
 from time import mktime
 from .functions import find_with_type, get_byte_width
 
-
-class BaseHandler(object):
-    '''A base class for object handlers. Does pretty much nothing itself.'''
+class ReferencesHandler(object):
+    '''A handler class for lists of references.'''
     
     def __init__(self):
-        '''
-        These values should be overwritten by subclasses. They are here to show
-        what's needed as a minimum.
-        '''
-        self.type_number = None
-        self.types = None
+        self.formats = (None, 'B', 'H')
+        self.endian = '>'
+        self.format = None
+        self.reference_size = None
     
-    def get_object_length(self, object_):
-        '''Hook for calculating the object length of the object.'''
-        return len(object_)
+    def set_reference_size(self, reference_size):
+        '''Save the given reference size, and set self.format appropriately.'''
+        self.reference_size = reference_size
+        self.format = self.formats[reference_size]
     
-    def get_byte_length(self, object_length):
+    def encode(self, references):
         '''
-        Hook for conversion between the object length and the byte length.
+        Return an encoded list of reference values. Used in encoding arrays and
+        dictionaries.
         '''
-        return object_length
+        format_ = self.endian + self.format * len(references)
+        encoded = pack(format_, *references)
+        return encoded
     
-    def encode_body(self, object_, object_length):
-        '''Hook for encoding the body of the object.'''
-        return ''
+    def decode(self, raw, object_length):
+        '''Decode the given reference list.'''
+        format_ = self.format * object_length
+        references = unpack(format_, raw)
+        return list(references)
     
-    def decode_body(self, raw, object_length):
-        '''Hook for decoding the body of an encoded object.'''
-        return raw
+    def flatten(self, object_list, objects):
+        '''Convert a list of objects to a list of references.'''
+        reference_list = []
+        for object_ in object_list:
+            reference = find_with_type(object_, objects)
+            reference_list.append(reference)
+        return reference_list
+    
+    def unflatten(self, references, objects, object_handler):
+        '''Convert a list of references to a list of objects.'''
+        object_list = []
+        for reference in references:
+            item = objects[reference]
+            item = object_handler.unflatten(item, objects)
+            object_list.append(item)
+        return object_list
     
 
-class BooleanHandler(BaseHandler):
+class BooleanHandler(object):
     '''Handler for boolean types in a binary plist.'''
     
     def __init__(self):
         '''Nothing to see here.'''
-        BaseHandler.__init__(self)
         self.type_number = 0
         self.types = (bool, type(None))
         self.integer_to_boolean = {0: None, 8: False, 9: True}
@@ -61,17 +76,20 @@ class BooleanHandler(BaseHandler):
         '''The byte length for a boolean is always zero.'''
         return 0
     
+    def encode_body(self, string, object_length):
+        '''Return an empty string.'''
+        return ''
+    
     def decode_body(self, raw, object_length):
         '''Return the decoded boolean value.'''
         return self.integer_to_boolean[object_length]
     
 
-class IntegerHandler(BaseHandler):
+class IntegerHandler(object):
     '''Handler class for integers.'''
     
     def __init__(self):
         '''Nothing to see here.'''
-        BaseHandler.__init__(self)
         self.type_number = 1
         self.formats = ('b', '>h', '>l', '>q')
         self.types = int
@@ -168,12 +186,11 @@ class DateHandler(FloatHandler):
         return datetime.fromtimestamp(seconds)
     
 
-class DataHander(BaseHandler):
+class DataHander(object):
     '''Handler class for arbitrary binary data. Uses plistlib.Data.'''
     
     def __init__(self):
         '''Nothing to see here.'''
-        BaseHandler.__init__(self)
         self.type_number = 4
         # this is ugly but maintains interop with plistlib.
         self.types = type(Data(''))
@@ -181,6 +198,10 @@ class DataHander(BaseHandler):
     def get_object_length(self, data):
         '''Get the length of the data stored inside the Data object.'''
         return len(data.data)
+    
+    def get_byte_length(self, object_length):
+        '''Return the object length.'''
+        return object_length
     
     def encode_body(self, data, object_length):
         '''Get the binary data from the Data object.'''
@@ -191,19 +212,30 @@ class DataHander(BaseHandler):
         return Data(raw)
     
 
-class StringHandler(BaseHandler):
+class StringHandler(object):
     '''Handler class for strings.'''
     
     def __init__(self):
         '''Nothing to see here.'''
-        BaseHandler.__init__(self)
         self.type_number = 5
         self.encoding = 'ascii'
         self.types = str
     
+    def get_object_length(self, string):
+        '''Return the length of the string.'''
+        return len(string)
+    
+    def get_byte_length(self, object_length):
+        '''Return the object length.'''
+        return object_length
+    
     def encode_body(self, string, object_length):
         '''Return the encoded version of string, according to self.encoding.'''
         return string.encode(self.encoding)
+    
+    def decode_body(self, string, object_length):
+        '''Return string.'''
+        return string
     
 
 class UnicodeStringHandler(StringHandler):
@@ -225,63 +257,19 @@ class UnicodeStringHandler(StringHandler):
         return raw.decode(self.encoding)
     
 
-class ReferencesHandler(object):
-    '''A handler class for lists of references.'''
-    
-    def __init__(self):
-        self.formats = (None, 'B', 'H')
-        self.endian = '>'
-        self.format = None
-        self.reference_size = None
-    
-    def set_reference_size(self, reference_size):
-        '''Save the given reference size, and set self.format appropriately.'''
-        self.reference_size = reference_size
-        self.format = self.formats[reference_size]
-    
-    def encode(self, references):
-        '''
-        Return an encoded list of reference values. Used in encoding arrays and
-        dictionaries.
-        '''
-        format_ = self.endian + self.format * len(references)
-        encoded = pack(format_, *references)
-        return encoded
-    
-    def decode(self, raw, object_length):
-        '''Decode the given reference list.'''
-        format_ = self.format * object_length
-        references = unpack(format_, raw)
-        return list(references)
-    
-    def flatten(self, object_list, objects):
-        '''Convert a list of objects to a list of references.'''
-        reference_list = []
-        for object_ in object_list:
-            reference = find_with_type(object_, objects)
-            reference_list.append(reference)
-        return reference_list
-    
-    def unflatten(self, references, objects, object_handler):
-        '''Convert a list of references to a list of objects.'''
-        object_list = []
-        for reference in references:
-            item = objects[reference]
-            item = object_handler.unflatten(item, objects)
-            object_list.append(item)
-        return object_list
-    
-
-class ArrayHandler(BaseHandler):
+class ArrayHandler(object):
     '''Handler class for arrays.'''
     
     def __init__(self, object_handler):
         '''Nothing to see here.'''
-        BaseHandler.__init__(self)
         self.type_number = 0xa
         self.types = list
         self.object_handler = object_handler
         self.references_handler = object_handler.references_handler
+    
+    def get_object_length(self, array):
+        '''Return the length of the list given.'''
+        return len(array)
     
     def get_byte_length(self, object_length):
         '''Return the object length times the reference size.'''
@@ -310,25 +298,24 @@ class ArrayHandler(BaseHandler):
             self.object_handler.collect_objects(item, objects)
     
 
-class DictionaryHandler(BaseHandler):
+class DictionaryHandler(ArrayHandler):
     '''Handler class for dictionaries. Subclasses the container handler.'''
     
     def __init__(self, object_handler):
         '''Nothing to see here.'''
-        BaseHandler.__init__(self)
+        ArrayHandler.__init__(self, object_handler)
         self.type_number = 0xd
         self.types = dict
-        self.object_handler = object_handler
-        self.references_handler = object_handler.references_handler
     
     def get_byte_length(self, object_length):
         '''Return twice the object length times the reference size.'''
-        return object_length * self.references_handler.reference_size * 2
+        return ArrayHandler.get_byte_length(self, object_length) * 2
     
     def encode_body(self, dictionary, object_length):
         '''Encode the flattened dictionary as two reference lists.'''
-        keys = self.references_handler.encode(dictionary.keys())
-        values = self.references_handler.encode(dictionary.values())
+        keys = ArrayHandler.encode_body(self, dictionary.keys(), object_length)
+        values = ArrayHandler.encode_body(self, dictionary.values(),
+                                          object_length)
         return ''.join((keys, values))
     
     def decode_body(self, raw, object_length):
@@ -336,29 +323,26 @@ class DictionaryHandler(BaseHandler):
         Decode the two reference lists in raw into a flattened dictionary.
         '''
         half = object_length * self.references_handler.reference_size
-        keys = self.references_handler.decode(raw[:half], object_length)
-        values = self.references_handler.decode(raw[half:], object_length)
+        keys = ArrayHandler.decode_body(self, raw[:half], object_length)
+        values = ArrayHandler.decode_body(self, raw[half:], object_length)
         return dict(zip(keys, values))
     
     def flatten(self, dictionary, objects):
         '''Flatten a dictionary into a dictionary of references.'''
-        keys = self.references_handler.flatten(dictionary.keys(), objects)
-        values = self.references_handler.flatten(dictionary.values(), objects)
+        keys = ArrayHandler.flatten(self, dictionary.keys(), objects)
+        values = ArrayHandler.flatten(self, dictionary.values(), objects)
         return dict(zip(keys, values))
     
     def unflatten(self, dictionary, objects):
         '''Unflatten a dictionary into a dictionary of objects.'''
-        keys = self.references_handler.unflatten(dictionary.keys(), objects,
-                                                 self.object_handler)
-        values = self.references_handler.unflatten(dictionary.values(),
-                                                   objects,
-                                                   self.object_handler)
+        keys = ArrayHandler.unflatten(self, dictionary.keys(), objects)
+        values = ArrayHandler.unflatten(self, dictionary.values(), objects)
         return dict(zip(keys, values))
     
     def collect_children(self, dictionary, objects):
         '''Collect all the keys and values in dictionary.'''
-        for item in dictionary.keys() + dictionary.values():
-            self.object_handler.collect_objects(item, objects)
+        ArrayHandler.collect_children(self, dictionary.keys(), objects)
+        ArrayHandler.collect_children(self, dictionary.values(), objects)
     
 
 class ObjectHandler(object):
