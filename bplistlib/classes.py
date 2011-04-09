@@ -44,21 +44,6 @@ class BaseHandler(object):
         '''Hook for unflattening object_ in the context of objects.'''
         return object_
     
-    def collect_objects(self, object_, objects):
-        '''
-        If object is not already in objects, add it and continue on with any
-        children it has. Otherwise do nothing.
-        '''
-        try:
-            find_with_type(object_, objects)
-        except ValueError:
-            objects.append(object_)
-            self.collect_children(object_, objects)
-    
-    def collect_children(self, object_, objects):
-        '''Hook for collecting child objects from objects that have those.'''
-        pass
-    
 
 class BooleanHandler(BaseHandler):
     '''Handler for boolean types in a binary plist.'''
@@ -108,9 +93,9 @@ class NumberHandler(BaseHandler):
         body = self.postprocess(body)
         return body
     
-    def process_bytes(self, bytes):
+    def process_bytes(self, bytes_):
         '''Hook for floats to reverse the byte order.'''
-        return bytes
+        return bytes_
     
     def get_byte_length(self, object_length):
         '''Calculate the byte length from the object length for a number.'''
@@ -170,9 +155,9 @@ class FloatHandler(NumberHandler):
             return 3
         raise ValueError
     
-    def process_bytes(self, body):
+    def process_bytes(self, bytes_):
         '''Reverse the byte order.'''
-        return body[::-1]
+        return bytes_[::-1]
     
 
 class DateHandler(FloatHandler):
@@ -485,8 +470,13 @@ class ObjectHandler(object):
         Collect all the objects in object_ into objects, using the appropriate
         handler.
         '''
-        handler = self.handlers_by_type[type(object_)]
-        handler.collect_objects(object_, objects)
+        try:
+            find_with_type(object_, objects)
+        except ValueError:
+            objects.append(object_)
+            if type(object_) in (dict, list):
+                handler = self.handlers_by_type[type(object_)]
+                handler.collect_children(object_, objects)
     
 
 class TableHandler(object):
