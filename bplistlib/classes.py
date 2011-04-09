@@ -269,7 +269,8 @@ class UnicodeStringHandler(StringHandler):
 class ReferencesHandler(object):
     '''A handler class for lists of references.'''
     def __init__(self):
-        self.formats = (None, 'B', '>H')
+        self.formats = (None, 'B', 'H')
+        self.endian = '>'
         self.format = None
         self.reference_size = None
     
@@ -283,7 +284,7 @@ class ReferencesHandler(object):
         Return an encoded list of reference values. Used in encoding arrays and
         dictionaries.
         '''
-        format_ = self.format * len(references)
+        format_ = self.endian + self.format * len(references)
         encoded = pack(format_, *references)
         return encoded
     
@@ -499,7 +500,8 @@ class TableHandler(object):
     
     def __init__(self):
         '''Nothin to see here.'''
-        self.formats = (None, 'B', '>H', 'BBB', '>L')
+        self.formats = (None, 'B', 'H', 'BBB', 'L')
+        self.endian = '>'
     
     def decode(self, file_object, offset_size, length, table_offset):
         '''
@@ -507,25 +509,26 @@ class TableHandler(object):
         '''
         file_object.seek(table_offset)
         offset_format = self.formats[offset_size]
-        table_format = offset_format * length
+        table_format = self.endian + offset_format * length
         raw = file_object.read(offset_size * length)
         offsets = unpack(table_format, raw)
         if offset_size == 3:
-            offsets = zip([offsets[x::3] for x in range(3)])
-            offsets = [o[0] * 0x100 + o[1] * 0x10 + o[2] for o in offsets]
+            zip_args = [offsets[x::3] for x in range(3)]
+            offsets = zip(*zip_args)
+            offsets = [o[0] * 0x10000 + o[1] * 0x100 + o[2] for o in offsets]
         return offsets
     
     def encode(self, offsets):
         '''Return the encoded form of a list of offsets.'''
         offset_size = get_byte_width(max(offsets), 4)
         offset_format = self.formats[offset_size]
-        table_format = offset_format * len(offsets)
+        table_format = self.endian + offset_format * len(offsets)
         if offset_size == 3:
             new_offsets = []
             for offset in offsets[:]:
-                first = offset // 0x100
-                second = (offset % 0x100) // 0x10
-                third = (offset % 0x100) % 0x10
+                first = offset // 0x10000
+                second = (offset % 0x10000) // 0x100
+                third = (offset % 0x10000) % 0x100
                 new_offsets += [first, second, third]
             offsets = new_offsets
         encoded = pack(table_format, *offsets)

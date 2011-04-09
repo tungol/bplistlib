@@ -4,7 +4,7 @@
 
 
 from cStringIO import StringIO
-from plistlib import readPlist, readPlistFromString
+from plistlib import readPlist
 from .readwrite import read, write
 
 
@@ -33,11 +33,7 @@ def read_any_plist_from_string(data):
     Detect if a given string represents a binary plist or an xml plist. Call
     the appropriate function to parse the string and return the result.
     '''
-    if data[:8] == 'bplist00':
-        return read_binary_plist_from_string(data)
-    else:
-        return readPlistFromString(data)
-
+    return read_any_plist(StringIO(data))
 
 def read_binary_plist(path_or_file):
     '''
