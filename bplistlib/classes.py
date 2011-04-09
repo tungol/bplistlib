@@ -2,7 +2,7 @@ from struct import pack, unpack
 from datetime import datetime
 from plistlib import Data
 from time import mktime
-
+from .functions import find_with_type, get_byte_width
 
 class BinaryPlistBaseHandler(object):
     def encode(self, object_):
@@ -61,7 +61,7 @@ class BinaryPlistBaseHandler(object):
     def decode_postprocess(self, object_):
         return object_
     
-    def unflatten(self, object_):
+    def unflatten(self, object_, objects):
         return object_
     
     def collect_objects(self, object_, objects):
@@ -218,15 +218,11 @@ class BinaryPlistContainerObjectHandler(BinaryPlistBaseHandler):
         self.formats = (None, 'B', '>H')
         self.format = None
         self.reference_size = None
-        self.objects = None
         self.object_handler = None
     
     def set_reference_size(self, reference_size):
         self.reference_size = reference_size
         self.format = self.formats[reference_size]
-    
-    def set_objects(self, objects):
-        self.objects = objects
     
     def set_object_handler(self, object_handler):
         self.object_handler = object_handler
@@ -245,17 +241,17 @@ class BinaryPlistContainerObjectHandler(BinaryPlistBaseHandler):
         references = unpack(format_, raw)
         return list(references)
     
-    def flatten_object_list(self, object_list):
+    def flatten_object_list(self, object_list, objects):
         reference_list = []
         for object_ in object_list:
-            reference = find_with_type(object_, self.objects)
+            reference = find_with_type(object_, objects)
             reference_list.append(reference)
         return reference_list
     
-    def unflatten_reference_list(self, references):
+    def unflatten_reference_list(self, references, objects):
         object_list = []
         for reference in references:
-            item = self.objects[reference]
+            item = objects[reference]
             item = self.object_handler.unflatten(item)
             object_list.append(item)
         return object_list
@@ -276,11 +272,11 @@ class BinaryPlistArrayHandler(BinaryPlistContainerObjectHandler):
     def decode_body(self, raw, object_length):
         return self.decode_reference_list(raw, object_length)
     
-    def flatten(self, array):
-        return self.flatten_object_list(array)
+    def flatten(self, array, objects):
+        return self.flatten_object_list(array, objects)
     
-    def unflatten(self, array):
-        return self.unflatten_reference_list(array)
+    def unflatten(self, array, objects):
+        return self.unflatten_reference_list(array, objects)
     
     def collect_children(self, array, objects):
         for item in array:
@@ -307,14 +303,14 @@ class BinaryPlistDictionaryHandler(BinaryPlistContainerObjectHandler):
         values = self.decode_reference_list(raw[half:], object_length)
         return dict(zip(keys, values))
     
-    def flatten(self, dictionary):
-        keys = self.flatten_object_list(dictionary.keys())
-        values = self.flatten_object_list(dictionary.values())
+    def flatten(self, dictionary, objects):
+        keys = self.flatten_object_list(dictionary.keys(), objects)
+        values = self.flatten_object_list(dictionary.values(), objects)
         return dict(zip(keys, values))
     
-    def unflatten(self, dictionary):
-        keys = self.unflatten_reference_list(dictionary.keys())
-        values = self.unflatten_reference_list(dictionary.values())
+    def unflatten(self, dictionary, objects):
+        keys = self.unflatten_reference_list(dictionary.keys(), objects)
+        values = self.unflatten_reference_list(dictionary.values(), objects)
         return dict(zip(keys, values))
     
     def collect_children(self, dictionary, objects):
@@ -350,10 +346,6 @@ class BinaryPlistObjectHandler(object):
         function = BinaryPlistContainerObjectHandler.set_reference_size
         self.set_on_containers(function, reference_size)
     
-    def set_objects(self, objects):
-        function = BinaryPlistContainerObjectHandler.set_objects
-        self.set_on_containers(function, objects)
-    
     def set_object_handler(self):
         function = BinaryPlistContainerObjectHandler.set_object_handler
         self.set_on_containers(function, self)
@@ -371,18 +363,18 @@ class BinaryPlistObjectHandler(object):
         flattened_objects = {}
         for item_index, item in enumerate(objects):
             if type(item) in (list, dict):
-                flattened = self.flatten(item)
+                flattened = self.flatten(item, objects)
                 flattened_objects.update({item_index: flattened})
         for index, object_ in flattened_objects.items():
             objects[index] = object_
     
-    def flatten(self, object_):
+    def flatten(self, object_, objects):
         handler = self.handlers_by_type[type(object_)]
-        return handler.flatten(object_)
+        return handler.flatten(object_, objects)
     
-    def unflatten(self, object_):
+    def unflatten(self, object_, objects):
         handler = self.handlers_by_type[type(object_)]
-        return handler.unflatten(object_)
+        return handler.unflatten(object_, objects)
     
     def decode_first_byte(self, file_object):
         value = unpack('B', file_object.read(1))[0]
@@ -412,7 +404,8 @@ class BinaryPlistTableHandler(object):
             offsets = [o[0] * 0x100 + o[1] * 0x10 + o[2] for o in offsets]
         return offsets
     
-    def encode(self, offsets, offset_size):
+    def encode(self, offsets):
+        offset_size = get_byte_width(max(offsets), 4)
         offset_format = self.formats[offset_size]
         table_format = offset_format * len(offsets)
         if offset_size == 3:
@@ -436,69 +429,13 @@ class BinaryPlistTrailerHandler(object):
         trailer = unpack(self.format, file_object.read())
         return trailer
     
-    def encode(self, offset_size, reference_size, objects, table_offset):
-        number_of_objects = len(objects)
+    def encode(self, offsets, table_offset):
+        offset_size = get_byte_width(max(offsets), 4)
+        number_of_objects = len(offsets)
         root_object = 0
+        reference_size = get_byte_width(len(offsets), 2)
         return pack('6xBB4xL4xL4xL', offset_size, reference_size,
                     number_of_objects, root_object, table_offset)
     
 
-def read(file_object):
-    object_handler = BinaryPlistObjectHandler()
-    table_handler = BinaryPlistTableHandler()
-    trailer_handler = BinaryPlistTrailerHandler()
-    trailer = trailer_handler.decode(file_object)
-    object_handler.set_reference_size(trailer[1])
-    table = table_handler.decode(file_object, trailer[0], 
-                                 trailer[2], trailer[4])
-    objects = []
-    for offset in table:
-        file_object.seek(offset)
-        object_ = object_handler.decode(file_object)
-        objects.append(object_)
-    object_handler.set_objects(objects)
-    root_object_number = trailer[3]
-    root_object = objects[root_object_number]
-    return object_handler.unflatten(root_object)
 
-def write(file_object, root_object):
-    '''Write the root_object to file_object.'''
-    object_handler = BinaryPlistObjectHandler()
-    table_handler = BinaryPlistTableHandler()
-    trailer_handler = BinaryPlistTrailerHandler()
-    objects = []
-    object_handler.collect_objects(root_object, objects)
-    object_handler.set_objects(objects)
-    object_handler.flatten_objects(objects)
-    reference_size = get_byte_width(len(objects), 2)
-    object_handler.set_reference_size(reference_size)
-    offsets = []
-    file_object.write('bplist00')
-    for object_ in objects:
-        offsets.append(file_object.tell())
-        encoded_object = object_handler.encode(object_)
-        file_object.write(encoded_object)
-    table_offset = file_object.tell()
-    offset_size = get_byte_width(table_offset, 4)
-    table = table_handler.encode(offsets, offset_size)
-    trailer = trailer_handler.encode(offset_size, reference_size, objects,
-                                     table_offset)
-    file_object.write(table)
-    file_object.write(trailer)
-
-def get_byte_width(value_to_store, max_byte_width):
-    for byte_width in range(max_byte_width):
-        if 0x100 ** byte_width <= value_to_store < 0x100 ** (byte_width + 1):
-            return byte_width + 1
-    raise ValueError
-
-def find_with_type(value, list_):
-    '''
-    Find value in list_, matching both for equality and type, and
-    return the index it was found at. If not found, raise ValueError.
-    '''
-    for index, comparison_value in enumerate(list_):
-        if (type(value) == type(comparison_value) and 
-            value == comparison_value):
-            return index
-    raise ValueError

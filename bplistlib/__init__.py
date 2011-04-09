@@ -30,9 +30,9 @@ Copyright: 2007-2008 Starlight Computer Wizardry
 '''
 
 
-from bplistlib import read_any_plist, read_any_plist_from_string
-from bplistlib import read_binary_plist, read_binary_plist_from_string
-from bplistlib import write_binary_plist, write_binary_plist_to_string
+from .public import read_any_plist, read_any_plist_from_string
+from .public import read_binary_plist, read_binary_plist_from_string
+from .public import write_binary_plist, write_binary_plist_to_string
 
 
 __all__ = ['read_any_plist', 'read_any_plist_from_string',

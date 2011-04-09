@@ -32,7 +32,7 @@ Copyright: 2007-2008 Starlight Computer Wizardry
 
 from cStringIO import StringIO
 from plistlib import readPlist, readPlistFromString
-from .objects import BinaryPlistParser, BinaryPlistWriter
+from .readwrite import read, write
 
 def read_any_plist(path_or_file):
     '''
@@ -74,8 +74,7 @@ def read_binary_plist(path_or_file):
     if isinstance(path_or_file, (str, unicode)):
         path_or_file = open(path_or_file)
         did_open = True
-    parser = BinaryPlistParser(path_or_file)
-    root_object = parser.read()
+    root_object = read(path_or_file)
     if did_open:
         path_or_file.close()
     return root_object
@@ -95,8 +94,7 @@ def write_binary_plist(path_or_file, root_object):
     if isinstance(path_or_file, (str, unicode)):
         path_or_file = open(path_or_file, "w")
         did_open = True
-    writer = BinaryPlistWriter(path_or_file)
-    writer.write(root_object)
+    write(path_or_file, root_object)
     if did_open:
         path_or_file.close()
 
