@@ -9,8 +9,8 @@ optional keyword argument, binary.
 
 To write a plist use one of:
 
-    writePlist(root_object, path_or_file) 
-    writePlistToString(root_object) 
+    writePlist(root_object, path_or_file)
+    writePlistToString(root_object)
 
 Called like this, these functions will write an xml plist using plistlib.
 To write a binary plist, use one of:
@@ -36,8 +36,8 @@ If you know you have an xml plist, you can use:
 
 
 Known issues:
-The actual plist format is more restrictive than is enforced here. In 
-particular, key values in a plist dictionary must be strings, which is not 
+The actual plist format is more restrictive than is enforced here. In
+particular, key values in a plist dictionary must be strings, which is not
 enforced. There may be other unenforced restrictions, be reasonable.
 """
 
