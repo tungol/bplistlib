@@ -252,7 +252,7 @@ class BinaryPlistContainerObjectHandler(BinaryPlistBaseHandler):
         object_list = []
         for reference in references:
             item = objects[reference]
-            item = self.object_handler.unflatten(item)
+            item = self.object_handler.unflatten(item, objects)
             object_list.append(item)
         return object_list
     
