@@ -1,9 +1,16 @@
+# encoding: utf-8
+'''This file contains private read/write functions for the bplistlib module.'''
+
 from .classes import BinaryPlistObjectHandler, BinaryPlistTableHandler
 from .classes import BinaryPlistTrailerHandler
 from .functions import get_byte_width
 
 
 def read(file_object):
+    '''
+    Read a binary plist from an open file object that supports seeking.
+    Return the root object.
+    '''
     trailer = read_trailer(file_object)
     offset_size, reference_size, length, root, table_offset = trailer
     offsets = read_table(file_object, offset_size, length, table_offset)
@@ -12,12 +19,17 @@ def read(file_object):
 
 
 def read_trailer(file_object):
+    '''Read and return the final, "trailer", section of an open file object.'''
     trailer_handler = BinaryPlistTrailerHandler()
     trailer = trailer_handler.decode(file_object)
     return trailer
 
 
 def read_table(file_object, offset_size, length, table_offset):
+    '''
+    Read an offset table from an open file object and return the decoded
+    offsets. 
+    '''
     table_handler = BinaryPlistTableHandler()
     offsets = table_handler.decode(file_object, offset_size,
                                    length, table_offset)
@@ -25,6 +37,7 @@ def read_table(file_object, offset_size, length, table_offset):
 
 
 def read_objects(file_object, offsets, reference_size, root):
+    '''Read from an open file_object and return the decoded root object.'''
     object_handler = BinaryPlistObjectHandler()
     object_handler.set_reference_size(reference_size)
     objects = []
@@ -45,6 +58,9 @@ def write(file_object, root_object):
 
 
 def write_objects(file_object, root_object):
+    '''
+    Flatten all objects, encode, and write the encoded objects to file_object.
+    '''
     objects = []
     object_handler = BinaryPlistObjectHandler()
     object_handler.collect_objects(root_object, objects)
@@ -60,6 +76,7 @@ def write_objects(file_object, root_object):
 
 
 def write_table(file_object, offsets):
+    '''Encode the offsets and write to file_object.'''
     table_handler = BinaryPlistTableHandler()
     table_offset = file_object.tell()
     table = table_handler.encode(offsets)
@@ -68,6 +85,7 @@ def write_table(file_object, offsets):
 
 
 def write_trailer(file_object, offsets, table_offset):
+    '''Encode the trailer section and write to file_object.'''
     trailer_handler = BinaryPlistTrailerHandler()
     trailer = trailer_handler.encode(offsets, table_offset)
     file_object.write(trailer)

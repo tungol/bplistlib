@@ -1,3 +1,6 @@
+# encoding: utf-8
+
+
 from struct import pack, unpack
 from datetime import datetime
 from plistlib import Data
@@ -73,7 +76,7 @@ class BinaryPlistBaseHandler(object):
             objects.append(object_)
             self.collect_children(object_, objects)
     
-    def collect_children(self, object, objects):
+    def collect_children(self, object_, objects):
         pass
     
 
