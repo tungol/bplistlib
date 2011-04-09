@@ -23,3 +23,23 @@ def find_with_type(value, list_):
             value == comparison_value):
             return index
     raise ValueError
+
+
+def flatten_object_list(object_list, objects):
+    """Convert a list of objects to a list of references."""
+    reference_list = []
+    for object_ in object_list:
+        reference = find_with_type(object_, objects)
+        reference_list.append(reference)
+    return reference_list
+
+
+def unflatten_reference_list(references, objects, object_handler):
+    """Convert a list of references to a list of objects."""
+    object_list = []
+    for reference in references:
+        item = objects[reference]
+        item = object_handler.unflatten(item, objects)
+        object_list.append(item)
+    return object_list
+

@@ -9,6 +9,7 @@ from datetime import datetime
 from plistlib import Data
 from time import mktime
 from .functions import find_with_type, get_byte_width
+from .functions import flatten_object_list, unflatten_reference_list
 
 
 class ReferencesHandler(object):
@@ -39,23 +40,6 @@ class ReferencesHandler(object):
         format_ = self.format * object_length
         references = unpack(format_, raw)
         return list(references)
-    
-    def flatten(self, object_list, objects):
-        """Convert a list of objects to a list of references."""
-        reference_list = []
-        for object_ in object_list:
-            reference = find_with_type(object_, objects)
-            reference_list.append(reference)
-        return reference_list
-    
-    def unflatten(self, references, objects, object_handler):
-        """Convert a list of references to a list of objects."""
-        object_list = []
-        for reference in references:
-            item = objects[reference]
-            item = object_handler.unflatten(item, objects)
-            object_list.append(item)
-        return object_list
     
 
 class BooleanHandler(object):
@@ -286,12 +270,11 @@ class ArrayHandler(object):
     
     def flatten(self, array, objects):
         """Flatten the array into a list of references."""
-        return self.references_handler.flatten(array, objects)
+        return flatten_object_list(array, objects)
     
     def unflatten(self, array, objects):
         """Unflatten the list of references into a list of objects."""
-        return self.references_handler.unflatten(array, objects,
-                                               self.object_handler)
+        return unflatten_reference_list(array, objects, self.object_handler)
     
     def collect_children(self, array, objects):
         """Collect all the items in the array."""
