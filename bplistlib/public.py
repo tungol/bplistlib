@@ -34,6 +34,7 @@ from cStringIO import StringIO
 from plistlib import readPlist, readPlistFromString
 from .readwrite import read, write
 
+
 def read_any_plist(path_or_file):
     '''
     Detect if a given path or file object represents a binary plist file or an

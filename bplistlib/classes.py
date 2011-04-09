@@ -4,7 +4,9 @@ from plistlib import Data
 from time import mktime
 from .functions import find_with_type, get_byte_width
 
+
 class BinaryPlistBaseHandler(object):
+    
     def encode(self, object_):
         object_ = self.encode_preprocess(object_)
         object_length = self.get_object_length(object_)
@@ -76,6 +78,7 @@ class BinaryPlistBaseHandler(object):
     
 
 class BinaryPlistBooleanHandler(BinaryPlistBaseHandler):
+    
     def __init__(self):
         BinaryPlistBaseHandler.__init__(self)
         self.type_number = 0
@@ -96,6 +99,7 @@ class BinaryPlistBooleanHandler(BinaryPlistBaseHandler):
     
 
 class BinaryPlistNumberHandler(BinaryPlistBaseHandler):
+    
     def __init__(self):
         BinaryPlistBaseHandler.__init__(self)
     
@@ -110,6 +114,7 @@ class BinaryPlistNumberHandler(BinaryPlistBaseHandler):
     
 
 class BinaryPlistIntegerHandler(BinaryPlistNumberHandler):
+    
     def __init__(self):
         BinaryPlistNumberHandler.__init__(self)
         self.type_number = 1
@@ -127,6 +132,7 @@ class BinaryPlistIntegerHandler(BinaryPlistNumberHandler):
     
 
 class BinaryPlistFloatHandler(BinaryPlistNumberHandler):
+    
     def __init__(self):
         BinaryPlistNumberHandler.__init__(self)
         self.type_number = 2
@@ -155,6 +161,7 @@ class BinaryPlistFloatHandler(BinaryPlistNumberHandler):
     
 
 class BinaryPlistDateHandler(BinaryPlistFloatHandler):
+    
     def __init__(self):
         BinaryPlistFloatHandler.__init__(self)
         self.type_number = 3
@@ -172,6 +179,7 @@ class BinaryPlistDateHandler(BinaryPlistFloatHandler):
     
 
 class BinaryPlistDataHander(BinaryPlistBaseHandler):
+    
     def __init__(self):
         BinaryPlistBaseHandler.__init__(self)
         self.type_number = 4
@@ -188,6 +196,7 @@ class BinaryPlistDataHander(BinaryPlistBaseHandler):
     
 
 class BinaryPlistStringHandler(BinaryPlistBaseHandler):
+    
     def __init__(self):
         BinaryPlistBaseHandler.__init__(self)
         self.type_number = 5
@@ -199,6 +208,7 @@ class BinaryPlistStringHandler(BinaryPlistBaseHandler):
     
 
 class BinaryPlistUnicodeStringHandler(BinaryPlistStringHandler):
+    
     def __init__(self):
         BinaryPlistStringHandler.__init__(self)
         self.type_number = 6
@@ -213,6 +223,7 @@ class BinaryPlistUnicodeStringHandler(BinaryPlistStringHandler):
     
 
 class BinaryPlistContainerObjectHandler(BinaryPlistBaseHandler):
+    
     def __init__(self):
         BinaryPlistBaseHandler.__init__(self)
         self.formats = (None, 'B', '>H')
@@ -258,6 +269,7 @@ class BinaryPlistContainerObjectHandler(BinaryPlistBaseHandler):
     
 
 class BinaryPlistArrayHandler(BinaryPlistContainerObjectHandler):
+    
     def __init__(self):
         BinaryPlistContainerObjectHandler.__init__(self)
         self.type_number = 0xa
@@ -284,6 +296,7 @@ class BinaryPlistArrayHandler(BinaryPlistContainerObjectHandler):
     
 
 class BinaryPlistDictionaryHandler(BinaryPlistContainerObjectHandler):
+    
     def __init__(self):
         BinaryPlistContainerObjectHandler.__init__(self)
         self.type_number = 0xd
@@ -319,6 +332,7 @@ class BinaryPlistDictionaryHandler(BinaryPlistContainerObjectHandler):
     
 
 class BinaryPlistObjectHandler(object):
+    
     def __init__(self):
         handlers = [BinaryPlistBooleanHandler(), BinaryPlistIntegerHandler(),
                     BinaryPlistFloatHandler(), BinaryPlistDateHandler(),
@@ -390,6 +404,7 @@ class BinaryPlistObjectHandler(object):
     
 
 class BinaryPlistTableHandler(object):
+    
     def __init__(self):
         self.formats = (None, 'B', '>H', 'BBB', '>L')
     
@@ -421,6 +436,7 @@ class BinaryPlistTableHandler(object):
     
 
 class BinaryPlistTrailerHandler(object):
+    
     def __init__(self):
         self.format = '>6xBB4xL4xL4xL'
     
@@ -437,5 +453,3 @@ class BinaryPlistTrailerHandler(object):
         return pack('6xBB4xL4xL4xL', offset_size, reference_size,
                     number_of_objects, root_object, table_offset)
     
-
-
