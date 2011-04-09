@@ -36,17 +36,17 @@ def readPlist(path_or_file, binary=None):
 def readPlistFromString(data, binary=None):
     """
     Read a plist from a given string. If the named argument binary is set to
-    True, then assume a binary plist. If it's set to False, then assume an xml
-    plist. Otherwise, try to detect the type and act accordingly. Return the
-    root object.
+    True, then assume a binary plist. If it's set to False, then assume an
+    xml plist. Otherwise, try to detect the type and act accordingly. Return
+    the root object.
     """
     return readPlist(StringIO(data), binary=binary)
 
 
 def writePlist(root_object, path_or_file, binary=False):
     """
-    Write root_object to path_or_file. If the named argument binary is set to
-    True, write a binary plist, otherwise write an xml one.
+    Write root_object to path_or_file. If the named argument binary is set
+    to True, write a binary plist, otherwise write an xml one.
     """
     did_open = False
     if isinstance(path_or_file, (str, unicode)):
@@ -63,7 +63,8 @@ def writePlist(root_object, path_or_file, binary=False):
 def writePlistToString(root_object, binary=False):
     """
     Write root_object to a string. If the named argument binary is set to
-    True, write a binary plist, otherwise write an xml one. Return the string.
+    True, write a binary plist, otherwise write an xml one. Return the
+    string.
     """
     string_io_object = StringIO()
     writePlist(root_object, string_io_object, binary=binary)

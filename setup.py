@@ -15,5 +15,5 @@ setup(
       long_description = package.__doc__,
       platforms=package.__platforms__,
       url = package.__url__,
-      classifiers = package.__classifiers__
+      classifiers = package.__classifiers__,
 )

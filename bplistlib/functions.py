@@ -42,4 +42,3 @@ def unflatten_reference_list(references, objects, object_handler):
         item = object_handler.unflatten(item, objects)
         object_list.append(item)
     return object_list
-

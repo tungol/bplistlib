@@ -69,7 +69,7 @@ class Tests(unittest.TestCase):
         self.assertEqual(value.minute, result.minute)
     
     def test_data(self):
-        value = Data('\xe0\x54\x6e\xb3\x2e\x7f\xe2\x0c\xd4\xad\x05\x49\xfc\xe2\xe4\xb8')
+        value = Data('\xe0\x54\x6e\xb3\x2e\x7f\xe2\x0c\xd4\xad\x05\x49\xfc')
         result = through_string(value)
         self.assertIsInstance(result, Data)
         self.assertEqual(value.data, result.data)

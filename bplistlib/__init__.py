@@ -3,21 +3,37 @@
 bplistlib: Read and write binary .plist files.
 
 This module is a drop-in enhancement of the plistlib module in the standard
-libary. It provides four functions, which each have the same call signature as
-a function with the same name in plistlib, with the addition of an optional
-keyword argument, binary.
+libary. It provides four functions, which each have the same call signature
+as a function with the same name in plistlib, with the addition of an
+optional keyword argument, binary.
 
-To write a plist use writePlist(root_object, path_or_file) or
-writePlistToString(root_object). Called like this, these functions will write
-an xml plist using plistlib. To write a binary plist, use
-writePlist(root_object, path_or_file, binary=True) or
-writePlistToString(root_object, binary=True).
+To write a plist use one of:
 
-To read a plist use readPlist(path_or_file) or readPlistFromString(data). Like
-this, these functions will attempt to determine whether the plist is binary or
-xml. If you know which you are reading, you can pass binary=True or
-binary=False in as an additional argument, for binary or xml plists,
-respectively.
+writePlist(root_object, path_or_file)
+writePlistToString(root_object)
+
+Called like this, these functions will write an xml plist using plistlib.
+To write a binary plist, use one of:
+
+writePlist(root_object, path_or_file, binary=True)
+writePlistToString(root_object, binary=True)
+
+To read a plist use one of:
+
+readPlist(path_or_file)
+readPlistFromString(data)
+
+Like this, these functions will attempt to determine whether the plist is
+binary or xml. If you know you have a binary plist, you can use one of:
+
+readPlist(path_or_file, binary=True)
+readPlistFromString(data, binary=True)
+
+If you know you have an xml plist, you can use:
+
+readPlist(path_or_file, binary=False)
+readPlistFromString(data, binary=False)
+
 
 Known issues:
 The actual plist format is more restrictive than is enforced here.
@@ -41,7 +57,7 @@ __platforms__ = 'any'
 __url__ = 'https://github.com/tungolcraft/bplistlib'
 __classifiers__ = [
   'Development Status :: 4 - Beta',
-  'Intended Audience :: End Users/Desktop',
+  'Intended Audience :: Developers',
   'License :: OSI Approved :: BSD License',
   'Operating System :: OS Independent',
   'Programming Language :: Python',
