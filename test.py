@@ -5,10 +5,15 @@ test_values = [True, False, None, 1, 1.01, 2.0 ** 128, datetime.now(),
                Data('1234'), 'hello', u'world', [1,2,3,4], {1:2, 3:4},
                range(0x100)]
 for value in test_values:
-    plist = bp.write_binary_plist_to_string(value)
-    result = bp.read_any_plist_from_string(plist)
+    plist = bp.writePlistToString(value, binary=True)
+    result = bp.readPlistFromString(plist)
     print repr(result)
 big = []
 for i in range(10):
     big.append(Data(str(i) * 1700000))
-bp.read_any_plist_from_string(bp.write_binary_plist_to_string(big))
+bp.readPlistFromString(bp.writePlistToString(big, binary=True), binary=True)
+
+a = {'1':2, '3':4}
+bp.readPlistFromString(bp.writePlistToString(a))
+bp.writePlist(a, 'tmp')
+bp.readPlist('tmp', binary=False)

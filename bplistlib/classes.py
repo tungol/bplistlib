@@ -26,25 +26,15 @@ class BaseHandler(object):
         '''Hook for calculating the object length of the object.'''
         return len(object_)
     
-    def encode_body(self, object_, object_length):
-        '''Hook for encoding the body of the object.'''
-        return ''
-    
-    def decode(self, file_object, object_length):
-        '''
-        Read out an encoded object from a file and return the decoded
-        version.
-        '''
-        byte_length = self.get_byte_length(object_length)
-        raw = file_object.read(byte_length)
-        object_ = self.decode_body(raw, object_length)
-        return object_
-    
     def get_byte_length(self, object_length):
         '''
         Hook for conversion between the object length and the byte length.
         '''
         return object_length
+    
+    def encode_body(self, object_, object_length):
+        '''Hook for encoding the body of the object.'''
+        return ''
     
     def decode_body(self, raw, object_length):
         '''Hook for decoding the body of an encoded object.'''
@@ -217,7 +207,8 @@ class DataHander(BaseHandler):
         '''Nothing to see here.'''
         BaseHandler.__init__(self)
         self.type_number = 4
-        self.types = type(Data(''))  # TODO: ugly
+        # this is ugly but maintains interop with plistlib.
+        self.types = type(Data(''))
     
     def get_object_length(self, data):
         '''Get the length of the data stored inside the Data object.'''
@@ -438,7 +429,9 @@ class ObjectHandler(object):
         '''Start reading in file_object, and decode the object found.'''
         object_type, object_length = self.decode_first_byte(file_object)
         handler = self.handlers_by_type_number[object_type]
-        return handler.decode(file_object, object_length)
+        byte_length = handler.get_byte_length(object_length)
+        raw = file_object.read(byte_length)
+        return handler.decode_body(raw, object_length)
     
     def flatten_objects(self, objects):
         '''Flatten all objects in objects.'''
@@ -467,7 +460,7 @@ class ObjectHandler(object):
         '''
         big = False
         if length >= 15:
-            real_length = self.encode(length)  # TODO: broken
+            real_length = self.encode(length)
             length = 15
             big = True
         value = (type_number << 4) + length
