@@ -331,12 +331,12 @@ class ReferencesHandler(object):
             reference_list.append(reference)
         return reference_list
     
-    def unflatten(self, references, objects):
+    def unflatten(self, references, objects, object_handler):
         '''Convert a list of references to a list of objects.'''
         object_list = []
         for reference in references:
             item = objects[reference]
-            item = self.object_handler.unflatten(item, objects)
+            item = object_handler.unflatten(item, objects)
             object_list.append(item)
         return object_list
     
@@ -354,7 +354,7 @@ class ArrayHandler(BaseHandler):
     
     def get_byte_length(self, object_length):
         '''Return the object length times the reference size.'''
-        return object_length * self.reference_size
+        return object_length * self.references_handler.reference_size
     
     def encode_body(self, array, object_length):
         '''Encode the flattened array as a single reference list.'''
@@ -370,7 +370,8 @@ class ArrayHandler(BaseHandler):
     
     def unflatten(self, array, objects):
         '''Unflatten the list of references into a list of objects.'''
-        return self.references_handler.flatten(array, objects)
+        return self.references_handler.unflatten(array, objects,
+                                               self.object_handler)
     
     def collect_children(self, array, objects):
         '''Collect all the items in the array.'''
@@ -391,7 +392,7 @@ class DictionaryHandler(BaseHandler):
     
     def get_byte_length(self, object_length):
         '''Return twice the object length times the reference size.'''
-        return object_length * self.reference_size * 2
+        return object_length * self.references_handler.reference_size * 2
     
     def encode_body(self, dictionary, object_length):
         '''Encode the flattened dictionary as two reference lists.'''
@@ -403,7 +404,7 @@ class DictionaryHandler(BaseHandler):
         '''
         Decode the two reference lists in raw into a flattened dictionary.
         '''
-        half = object_length * self.reference_size
+        half = object_length * self.references_handler.reference_size
         keys = self.references_handler.decode(raw[:half], object_length)
         values = self.references_handler.decode(raw[half:], object_length)
         return dict(zip(keys, values))
@@ -416,8 +417,11 @@ class DictionaryHandler(BaseHandler):
     
     def unflatten(self, dictionary, objects):
         '''Unflatten a dictionary into a dictionary of objects.'''
-        keys = self.references_handler.unflatten(dictionary.keys(), objects)
-        values = self.references_handler.unflatten(dictionary.values(), objects)
+        keys = self.references_handler.unflatten(dictionary.keys(), objects,
+                                                 self.object_handler)
+        values = self.references_handler.unflatten(dictionary.values(),
+                                                   objects,
+                                                   self.object_handler)
         return dict(zip(keys, values))
     
     def collect_children(self, dictionary, objects):
@@ -561,6 +565,6 @@ class TrailerHandler(object):
         number_of_objects = len(offsets)
         reference_size = get_byte_width(number_of_objects, 2)
         root_object = 0
-        return pack('6xBB4xL4xL4xL', offset_size, reference_size,
+        return pack(self.format, offset_size, reference_size,
                     number_of_objects, root_object, table_offset)
     
