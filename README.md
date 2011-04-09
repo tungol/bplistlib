@@ -50,10 +50,7 @@ terms:
 
 Any use is fine with attribution.
 
-Author: Pete M. Wilson
-
-Website: http://scw.us/iPhone/plutil/
-
-Email: scw@gamewood.net
-
+Author: Pete M. Wilson  
+Website: http://scw.us/iPhone/plutil/  
+Email: scw@gamewood.net  
 Copyright: 2007-2008 Starlight Computer Wizardry
