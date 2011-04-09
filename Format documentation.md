@@ -1,3 +1,5 @@
+This file describes the format of binary .plist files.
+
 Available types
 ===============
 
