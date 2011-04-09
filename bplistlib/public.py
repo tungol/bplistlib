@@ -4,76 +4,68 @@
 
 
 from cStringIO import StringIO
-from plistlib import readPlist
+import plistlib
 from .readwrite import read, write
 
 
-def read_any_plist(path_or_file):
+def readPlist(path_or_file, binary=None):
     '''
-    Detect if a given path or file object represents a binary plist file or an
-    xml plist file. Call the appropriate function to read the type of plist
-    found and return the parsed root object.
+    Read a plist from path_or_file. If the named argument binary is set to
+    True, then assume path_or_file is a binary plist. If it's set to false,
+    then assume it's an xml plist. Otherwise, try to detect the type and act
+    accordingly. Return the root object.
     '''
     did_open = False
     if isinstance(path_or_file, (str, unicode)):
         path_or_file = open(path_or_file)
         did_open = True
-    if path_or_file.read(8) == 'bplist00':
-        root_object = read_binary_plist(path_or_file)
+    if binary is True:
+        root_object = read(path_or_file)
+    elif binary is False:
+        root_object = plistlib.readPlist(path_or_file)
     else:
-        path_or_file.seek(0)  # I'm not sure if this is necessary
-        root_object = readPlist(path_or_file)
+        if path_or_file.read(8) == 'bplist00':
+            root_object = read(path_or_file)
+        else:
+            path_or_file.seek(0)  # I'm not sure if this is necessary
+            root_object = plistlib.readPlist(path_or_file)
     if did_open:
         path_or_file.close()
     return root_object
 
 
-def read_any_plist_from_string(data):
+def readPlistFromString(data, binary=None):
     '''
-    Detect if a given string represents a binary plist or an xml plist. Call
-    the appropriate function to parse the string and return the result.
+    Read a plist from a given string. If the named argument binary is set to
+    True, then assume a binary plist. If it's set to False, then assume an xml
+    plist. Otherwise, try to detect the type and act accordingly. Return the
+    root object.
     '''
-    return read_any_plist(StringIO(data))
-
-def read_binary_plist(path_or_file):
-    '''
-    Parse a binary plist from a path or file object, and return the root
-    object.
-    '''
-    did_open = False
-    if isinstance(path_or_file, (str, unicode)):
-        path_or_file = open(path_or_file)
-        did_open = True
-    root_object = read(path_or_file)
-    if did_open:
-        path_or_file.close()
-    return root_object
+    return readPlist(StringIO(data), binary=binary)
 
 
-def read_binary_plist_from_string(data):
-    '''Parse a binary plist from a string and return the root object.'''
-    return read_binary_plist(StringIO(data))
-
-
-def write_binary_plist(path_or_file, root_object):
+def writePlist(root_object, path_or_file, binary=False):
     '''
-    Write a binary plist representation of the root object to the path or
-    file object given.
+    Write root_object to path_or_file. If the named argument binary is set to
+    True, write a binary plist, otherwise write an xml one.
     '''
     did_open = False
     if isinstance(path_or_file, (str, unicode)):
         path_or_file = open(path_or_file, "w")
         did_open = True
-    write(path_or_file, root_object)
+    if binary is True:
+        write(root_object, path_or_file)
+    else:
+        plistlib.writePlist(root_object, path_or_file)
     if did_open:
         path_or_file.close()
 
 
-def write_binary_plist_to_string(root_object):
+def writePlistToString(root_object, binary=False):
     '''
-    Encode the given root object as a binary plist and return a string of the
-    encoding.
+    Write root_object to a string. If the named argument binary is set to
+    True, write a binary plist, otherwise write an xml one. Return the string.
     '''
     string_io_object = StringIO()
-    write_binary_plist(string_io_object, root_object)
+    writePlist(root_object, string_io_object, binary=binary)
     return string_io_object.getvalue()

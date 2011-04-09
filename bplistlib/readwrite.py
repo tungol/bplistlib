@@ -28,7 +28,7 @@ def read_trailer(file_object):
 def read_table(file_object, offset_size, length, table_offset):
     '''
     Read an offset table from an open file object and return the decoded
-    offsets. 
+    offsets.
     '''
     table_handler = TableHandler()
     offsets = table_handler.decode(file_object, offset_size,
@@ -49,7 +49,7 @@ def read_objects(file_object, offsets, reference_size, root):
     return object_handler.unflatten(root_object, objects)
 
 
-def write(file_object, root_object):
+def write(root_object, file_object):
     '''Write the root_object to file_object.'''
     file_object.write('bplist00')
     offsets = write_objects(file_object, root_object)

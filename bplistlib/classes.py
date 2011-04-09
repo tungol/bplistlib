@@ -32,7 +32,7 @@ class BaseHandler(object):
     
     def decode(self, file_object, object_length):
         '''
-        Read out an encoded object from a file and return the decoded 
+        Read out an encoded object from a file and return the decoded
         version.
         '''
         byte_length = self.get_byte_length(object_length)
@@ -268,6 +268,7 @@ class UnicodeStringHandler(StringHandler):
 
 class ReferencesHandler(object):
     '''A handler class for lists of references.'''
+    
     def __init__(self):
         self.formats = (None, 'B', 'H')
         self.endian = '>'

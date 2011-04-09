@@ -1,6 +1,7 @@
 # encoding: utf-8
 '''This file contains private functions for the bplistlib module.'''
 
+
 def get_byte_width(value_to_store, max_byte_width):
     '''
     Return the minimum number of bytes needed to store a given value as an
