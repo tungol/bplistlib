@@ -22,32 +22,9 @@ class BaseHandler(object):
         self.type_number = None
         self.types = None
     
-    def encode(self, object_):
-        '''Return the encoded version of object_.'''
-        object_length = self.get_object_length(object_)
-        first_byte = self.encode_first_byte(self.type_number, object_length)
-        body = self.encode_body(object_, object_length)
-        return ''.join((first_byte, body))
-    
     def get_object_length(self, object_):
         '''Hook for calculating the object length of the object.'''
         return len(object_)
-    
-    def encode_first_byte(self, type_number, length):
-        '''
-        Encode the first byte (or bytes if length is greater than 14) of a an
-        encoded object. This encodes the type and length of the object.
-        '''
-        big = False
-        if length >= 15:
-            real_length = self.encode_integer(length)  # TODO: broken
-            length = 15
-            big = True
-        value = (type_number << 4) + length
-        encoded = pack('B', value)
-        if big:
-            return ''.join((encoded, real_length))
-        return encoded
     
     def encode_body(self, object_, object_length):
         '''Hook for encoding the body of the object.'''
@@ -450,7 +427,10 @@ class ObjectHandler(object):
     def encode(self, object_):
         '''Use the appropriate handler to encode the given object.'''
         handler = self.handlers_by_type[type(object_)]
-        return handler.encode(object_)
+        object_length = handler.get_object_length(object_)
+        first_byte = self.encode_first_byte(handler.type_number, object_length)
+        body = handler.encode_body(object_, object_length)
+        return ''.join((first_byte, body))
     
     def decode(self, file_object):
         '''Start reading in file_object, and decode the object found.'''
@@ -477,6 +457,22 @@ class ObjectHandler(object):
         '''Unflatten the give object, using the appropriate handler.'''
         handler = self.handlers_by_type[type(object_)]
         return handler.unflatten(object_, objects)
+    
+    def encode_first_byte(self, type_number, length):
+        '''
+        Encode the first byte (or bytes if length is greater than 14) of a an
+        encoded object. This encodes the type and length of the object.
+        '''
+        big = False
+        if length >= 15:
+            real_length = self.encode(length)  # TODO: broken
+            length = 15
+            big = True
+        value = (type_number << 4) + length
+        encoded = pack('B', value)
+        if big:
+            return ''.join((encoded, real_length))
+        return encoded
     
     def decode_first_byte(self, file_object):
         '''
