@@ -10,16 +10,16 @@ from plistlib import Data
 from time import mktime
 from .functions import find_with_type, get_byte_width
 from .functions import flatten_object_list, unflatten_reference_list
+from .types import UID, Fill, FillType
 
 
 class BooleanHandler(object):
     """Handler for boolean types in a binary plist."""
     
     def __init__(self):
-        """Nothing to see here."""
         self.type_number = 0
-        self.types = (bool, type(None))
-        self.integer_to_boolean = {0: None, 8: False, 9: True}
+        self.types = (bool, type(None), FillType)
+        self.integer_to_boolean = {0: None, 8: False, 9: True, 15: Fill}
         self.boolean_to_integer = dict(zip(self.integer_to_boolean.values(),
                                            self.integer_to_boolean.keys()))
     
@@ -44,7 +44,6 @@ class IntegerHandler(object):
     """Handler class for integers."""
     
     def __init__(self):
-        """Nothing to see here."""
         self.type_number = 1
         self.formats = ('b', '>h', '>l', '>q')
         self.types = int
@@ -75,7 +74,6 @@ class FloatHandler(IntegerHandler):
     """Handler class for floats. Subclass of the integer handler."""
     
     def __init__(self):
-        """Nothing to see here."""
         IntegerHandler.__init__(self)
         self.type_number = 2
         self.formats = (None, None, 'f', 'd')
@@ -111,7 +109,6 @@ class DateHandler(FloatHandler):
     """
     
     def __init__(self):
-        """Nothing to see here."""
         FloatHandler.__init__(self)
         self.type_number = 3
         # seconds between 1 Jan 1970 and 1 Jan 2001
@@ -145,7 +142,6 @@ class DataHander(object):
     """Handler class for arbitrary binary data. Uses plistlib.Data."""
     
     def __init__(self):
-        """Nothing to see here."""
         self.type_number = 4
         # this is ugly but maintains interop with plistlib.
         self.types = type(Data(''))
@@ -171,7 +167,6 @@ class StringHandler(object):
     """Handler class for strings."""
     
     def __init__(self):
-        """Nothing to see here."""
         self.type_number = 5
         self.encoding = 'ascii'
         self.types = str
@@ -197,7 +192,6 @@ class UnicodeStringHandler(StringHandler):
     """Handler class for unicode strings. Subclass of the string handler."""
     
     def __init__(self):
-        """Nothing to see here."""
         StringHandler.__init__(self)
         self.type_number = 6
         self.encoding = 'utf_16_be'
@@ -212,11 +206,39 @@ class UnicodeStringHandler(StringHandler):
         return raw.decode(self.encoding)
     
 
+class UIDHandler(IntegerHandler):
+    """Handler class for UIDs. Subclass of the integer Handler."""
+    
+    def __init__(self):
+        IntegerHandler.__init__(self)
+        self.type_number = 8
+        self.formats = ('B', '>H', '>L', '>Q')
+        self.types = UID
+    
+    def get_object_length(self, uid):
+        """Return the object length for an integer."""
+        bit_lengths = [8 * 2 ** x for x in range(4)]
+        limits = [2 ** bit_length for bit_length in bit_lengths]
+        for index, limit in enumerate(limits):
+            if limits[index - 1] < uid <= limit:
+                return index
+        raise ValueError
+    
+    def encode_body(self, uid, object_length):
+        """Get the integer value of the UID object, and encode that."""
+        value = int(uid)
+        return IntegerHandler.encode_body(self, value, object_length)
+    
+    def decode_body(self, raw, object_length):
+        """Decode an integer value and put in a UID object."""
+        value = IntegerHandler.decode_body(self, raw, object_length)
+        return UID(value)
+    
+
 class ArrayHandler(object):
     """Handler class for arrays."""
     
     def __init__(self, object_handler):
-        """Nothing to see here."""
         self.type_number = 0xa
         self.types = list
         self.object_handler = object_handler
@@ -268,7 +290,6 @@ class DictionaryHandler(ArrayHandler):
     """Handler class for dictionaries. Subclasses the container handler."""
     
     def __init__(self, object_handler):
-        """Nothing to see here."""
         ArrayHandler.__init__(self, object_handler)
         self.type_number = 0xd
         self.types = dict
@@ -319,7 +340,7 @@ class ObjectHandler(object):
         handlers = [BooleanHandler(), IntegerHandler(), FloatHandler(),
                     DateHandler(), DataHander(), StringHandler(),
                     UnicodeStringHandler(), ArrayHandler(self),
-                    DictionaryHandler(self)]
+                    DictionaryHandler(self), UIDHandler()]
         self.handlers_by_type_number = {}
         self.handlers_by_type = {}
         for handler in handlers:
@@ -379,9 +400,10 @@ class ObjectHandler(object):
         """
         Encode the first byte (or bytes if length is greater than 14) of a an
         encoded object. This encodes the type and length of the object.
+        Boolean type objects never encode as more than one byte.
         """
         big = False
-        if length >= 15:
+        if length >= 15 and type_number != 0:
             real_length = self.encode(length)
             length = 15
             big = True
@@ -394,11 +416,12 @@ class ObjectHandler(object):
     def decode_first_byte(self, file_object):
         """
         Get the type number and object length from the first byte of an object.
+        Boolean type objects never encode as more than one byte.
         """
         value = unpack('B', file_object.read(1))[0]
         object_type = value >> 4
         object_length = value & 0xF
-        if object_length == 15:
+        if object_length == 15 and object_type != 0:
             object_length = self.decode(file_object)
         return object_type, object_length
     
@@ -420,7 +443,6 @@ class TableHandler(object):
     """A handler class for the offset table found in binary plists."""
     
     def __init__(self):
-        """Nothin to see here."""
         self.formats = (None, 'B', 'H', 'BBB', 'L')
         self.endian = '>'
     
@@ -460,7 +482,6 @@ class TrailerHandler(object):
     """A handler class for the 'trailer' found in binary plists."""
     
     def __init__(self):
-        """Nothing to see here."""
         self.format = '>6xBB4xL4xL4xL'
     
     def decode(self, file_object):

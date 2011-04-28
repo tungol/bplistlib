@@ -30,6 +30,12 @@ class Tests(unittest.TestCase):
         self.assertIsInstance(result, type(value))
         self.assertIs(value, result)
     
+    def test_fill(self):
+        value = bp.Fill
+        result = through_string(value)
+        self.assertIsInstance(result, type(value))
+        self.assertIs(value, result)
+    
     def test_small_integer(self):
         for i in range(20):
             value = random.randint(-500, 500)
@@ -88,6 +94,12 @@ class Tests(unittest.TestCase):
     
     def test_array(self):
         value = [1, 2, 3, 4]
+        result = through_string(value)
+        self.assertIsInstance(result, type(value))
+        self.assertEqual(value, result)
+    
+    def test_uid(self):
+        value = bp.UID(25)
         result = through_string(value)
         self.assertIsInstance(result, type(value))
         self.assertEqual(value, result)
