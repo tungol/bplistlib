@@ -220,8 +220,12 @@ class UIDHandler(IntegerHandler):
         bit_lengths = [8 * 2 ** x for x in range(4)]
         limits = [2 ** bit_length for bit_length in bit_lengths]
         for index, limit in enumerate(limits):
-            if limits[index - 1] < uid <= limit:
-                return index
+            if index == 0:
+                if 0 <= uid <= limit:
+                    return index
+            else:
+                if limits[index - 1] < uid <= limit:
+                    return index
         raise ValueError
     
     def encode_body(self, uid, object_length):
