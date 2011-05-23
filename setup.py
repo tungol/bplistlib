@@ -3,7 +3,6 @@
 
 from setuptools import setup
 import bplistlib as package
-import test
 
 setup(
       name = package.__name__,
@@ -17,5 +16,5 @@ setup(
       platforms=package.__platforms__,
       url = package.__url__,
       classifiers = package.__classifiers__,
-      test_suite = "test.suite",
+      test_suite = 'test.suite',
 )

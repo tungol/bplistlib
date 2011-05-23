@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """Test suite for bplistlib. Pretty good coverage."""
+# although note that because everything is round trip encode/decode,
+# as long as the bug is symmetric, deviations from spec in encoded form
+# may be missed.
 
 from datetime import datetime
 from plistlib import Data
