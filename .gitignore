@@ -3,6 +3,7 @@
 *.egg-info
 build/
 dist/
+MANIFEST
 
 # mac stuff
 .DS_Store

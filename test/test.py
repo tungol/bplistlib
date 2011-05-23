@@ -36,6 +36,11 @@ class Tests(unittest.TestCase):
         self.assertIsInstance(result, type(value))
         self.assertIs(value, result)
     
+    def test_fill_representation(self):
+        value = repr(bp.Fill)
+        self.assertIsInstance(value, str)
+        self.assertEqual(value, 'Fill')
+    
     def test_small_integer(self):
         for i in range(20):
             value = random.randint(-500, 500)
@@ -104,6 +109,17 @@ class Tests(unittest.TestCase):
         self.assertIsInstance(result, type(value))
         self.assertEqual(value, result)
     
+    def test_big_uid(self):
+        value = bp.UID(2225)
+        result = through_string(value)
+        self.assertIsInstance(result, type(value))
+        self.assertEqual(value, result)
+    
+    def test_uid_representation(self):
+        value = repr(bp.UID(36))
+        self.assertIsInstance(value, str)
+        self.assertEqual(value, 'UID(36)')
+    
     def test_dictionary(self):
         value = {1: 2, 3: 4}
         result = through_string(value)
@@ -162,6 +178,3 @@ def suite():
     for method in methods:
         suite.addTest(Tests(method))
     return suite
-
-if __name__ == '__main__':
-    unittest.main()

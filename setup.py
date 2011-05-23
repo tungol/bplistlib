@@ -16,6 +16,7 @@ setup(
       long_description = package.__doc__,
       platforms=package.__platforms__,
       url = package.__url__,
+      use_2to3 = True,
       classifiers = package.__classifiers__,
       test_suite = "test.suite",
 )
