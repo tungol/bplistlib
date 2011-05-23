@@ -40,7 +40,7 @@ def load(fp, binary=None):
 
 
 def loads(s, binary=None):
-    load(StringIO(s), binary)
+    return load(StringIO(s), binary)
 
 
 ################

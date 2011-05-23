@@ -150,9 +150,18 @@ class Tests(unittest.TestCase):
     
 
 def through_string(value, write_binary=True, read_binary=None):
-    plist = bp.writePlistToString(value, binary=write_binary)
-    return bp.readPlistFromString(plist, binary=read_binary)
+    plist = bp.dumps(value, binary=write_binary)
+    return bp.loads(plist, binary=read_binary)
 
+
+
+def suite():
+    suite = unittest.TestSuite()
+    methods = [m for m in dir(Tests) if callable(getattr(Tests, m))
+                                     and m[:5] == 'test_']
+    for method in methods:
+        suite.addTest(Tests(method))
+    return suite
 
 if __name__ == '__main__':
     unittest.main()
