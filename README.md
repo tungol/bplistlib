@@ -104,7 +104,7 @@ Acknowledgements
 ----------------
 
 I figured out details of the binary plist format from examining the perl
-program pluil.pl, version 1.6 which is available under the following
+program pluitl.pl, version 1.6 which is available under the following
 terms:
 
 Any use is fine with attribution.
