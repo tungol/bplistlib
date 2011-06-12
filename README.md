@@ -100,6 +100,9 @@ not enforced. There may be other unenforced restrictions, be reasonable.
 plutil notes mention "Output of float precision in binary format". Not
 sure what that means.
 
+Deduplication isn't as aggressive as it could be, OS X's plutil gets
+smaller files. Ordering is different too, which might be nice to match.
+
 Acknowledgements
 ----------------
 
