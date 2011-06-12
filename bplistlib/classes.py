@@ -465,9 +465,9 @@ class TableHandler(object):
             offsets = [o[0] * 0x10000 + o[1] * 0x100 + o[2] for o in offsets]
         return offsets
     
-    def encode(self, offsets):
+    def encode(self, offsets, table_offset):
         """Return the encoded form of a list of offsets."""
-        offset_size = get_byte_width(max(offsets), 4)
+        offset_size = get_byte_width(table_offset, 4)
         offset_format = self.formats[offset_size]
         table_format = self.endian + offset_format * len(offsets)
         if offset_size == 3:
@@ -499,7 +499,7 @@ class TrailerHandler(object):
         Encode the trailer for a binary plist file with given offsets and
         table_offet.
         """
-        offset_size = get_byte_width(max(offsets), 4)
+        offset_size = get_byte_width(table_offset, 4)
         number_of_objects = len(offsets)
         reference_size = get_byte_width(number_of_objects, 2)
         root_object = 0

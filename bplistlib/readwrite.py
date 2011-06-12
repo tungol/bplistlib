@@ -79,7 +79,7 @@ def write_table(file_object, offsets):
     """Encode the offsets and write to file_object."""
     table_handler = TableHandler()
     table_offset = file_object.tell()
-    table = table_handler.encode(offsets)
+    table = table_handler.encode(offsets, table_offset)
     file_object.write(table)
     return table_offset
 

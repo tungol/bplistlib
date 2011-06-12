@@ -44,7 +44,8 @@ The final 32 bytes of a binary plist have the following format:
   
   2. a 1 byte integer which is the number of bytes for an offset value. 
      Valid values are 1, 2, 3, or 4. Offset values are encoded as unsigned, 
-     big endian integers.
+     big endian integers. Must be wide enough to encode the offset of the
+     offset table, not just the highest object offset.
      
   3. a 1 byte integer which is the number of bytes for an object reference 
      number. Valid values are 1 or 2. Reference numbers are encoded as 
