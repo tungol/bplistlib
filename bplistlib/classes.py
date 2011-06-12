@@ -345,6 +345,8 @@ class ObjectHandler(object):
                     DateHandler(), DataHander(), StringHandler(),
                     UnicodeStringHandler(), ArrayHandler(self),
                     DictionaryHandler(self), UIDHandler()]
+        self.size_handler = UIDHandler()
+        self.size_handler.type_number = 1
         self.handlers_by_type_number = {}
         self.handlers_by_type = {}
         for handler in handlers:
@@ -362,18 +364,20 @@ class ObjectHandler(object):
         array_handler.set_reference_size(reference_size)
         dict_handler.set_reference_size(reference_size)
     
-    def encode(self, object_):
+    def encode(self, object_, handler=None):
         """Use the appropriate handler to encode the given object."""
-        handler = self.handlers_by_type[type(object_)]
+        if handler is None:
+            handler = self.handlers_by_type[type(object_)]
         object_length = handler.get_object_length(object_)
         first_byte = self.encode_first_byte(handler.type_number, object_length)
         body = handler.encode_body(object_, object_length)
         return ''.join((first_byte, body))
     
-    def decode(self, file_object):
+    def decode(self, file_object, handler=None):
         """Start reading in file_object, and decode the object found."""
         object_type, object_length = self.decode_first_byte(file_object)
-        handler = self.handlers_by_type_number[object_type]
+        if handler is None:
+            handler = self.handlers_by_type_number[object_type]
         byte_length = handler.get_byte_length(object_length)
         raw = file_object.read(byte_length)
         return handler.decode_body(raw, object_length)
@@ -408,7 +412,7 @@ class ObjectHandler(object):
         """
         big = False
         if length >= 15 and type_number != 0:
-            real_length = self.encode(length)
+            real_length = self.encode(length, handler=self.size_handler)
             length = 15
             big = True
         value = (type_number << 4) + length
@@ -426,7 +430,7 @@ class ObjectHandler(object):
         object_type = value >> 4
         object_length = value & 0xF
         if object_length == 15 and object_type != 0:
-            object_length = self.decode(file_object)
+            object_length = self.decode(file_object, handler=self.size_handler)
         return object_type, object_length
     
     def collect_objects(self, object_, objects):

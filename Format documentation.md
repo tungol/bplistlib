@@ -87,9 +87,10 @@ following mapping:
 
 The second four bits are the size of the object. If the value given is 15, 
 this means that the true object size is greater than can be expressed in 
-four bits, and the next byte is the start of an encoded integer object which 
-expresses the true size. This is not the case for 0x0 type objects however,
-see below for details. I will refer to this value as the object length.
+four bits. In this case, the next byte is the start of the true size,
+encoded like the integer objects, except the value is unsigned. This is not
+the case for 0x0 type objects however, see below for details. I will refer to
+this value as the object length.
 
 The encoding for the remainder of the object varies by type. The "byte 
 length" is the number of bytes used in encoding the object, not counting the 
