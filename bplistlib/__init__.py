@@ -45,6 +45,10 @@ not enforced. There may be other unenforced restrictions, be reasonable.
 # TODO: update docstrings
 # TODO: reorganize for fewer files
 # TODO: autodetect byte length for strings by characters used, not python type
+# TODO: set type, id is 0xc
+# TODO: only data, string, array, set, and dict support extended int count
+# TODO: date is always 8 byte float, len=3
+# deduplicating booleans is unnessesary, skip it
 
 
 from .public import readPlist, readPlistFromString

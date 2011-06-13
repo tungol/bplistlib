@@ -142,11 +142,8 @@ not interpreted.
 Single Byte String
 ------------------
 
-The byte length is the object length, and any value is valid. I'm not sure 
-of the encoding. Ascii is safe to assume since all possible encodings are 
-identical to ascii over that range. Outside of the ascii range, maybe 
-(single bytes of) utf-8? latin-1? MacRoman? Best to stick to ascii, and use 
-double byte strings outside of that.
+The byte length is the object length, and any value is valid. Encoding is
+ASCII.
 
 
 Double Byte String
