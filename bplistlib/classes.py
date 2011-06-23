@@ -116,8 +116,7 @@ class DateHandler(FloatHandler):
         self.types = datetime
     
     def get_object_length(self, date):
-        seconds = self.convert_to_seconds(date)
-        return FloatHandler.get_object_length(self, seconds)
+        return 3
     
     def encode_body(self, date, object_length):
         seconds = self.convert_to_seconds(date)

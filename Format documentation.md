@@ -120,7 +120,7 @@ Float
 -----
 
 The object length to byte length conversion is the same as for integers. The 
-object length can be 2 or 3, corresponding to a byte length of 4 or 8. The 
+object length is always 3, corresponding to a byte length of 8. The 
 encoding is as a single-precision or a double-precision float, accordingly. 
 Byte order is reversed from IEEE 754.
 
