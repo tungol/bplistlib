@@ -76,7 +76,7 @@ class FloatHandler(IntegerHandler):
     def __init__(self):
         IntegerHandler.__init__(self)
         self.type_number = 2
-        self.formats = (None, None, 'f', 'd')
+        self.formats = (None, None, '>f', '>d')
         self.types = float
     
     def get_object_length(self, float_):
@@ -98,7 +98,6 @@ class FloatHandler(IntegerHandler):
         return body[::-1]
     
     def decode_body(self, raw, object_length):
-        raw = raw[::-1]
         return IntegerHandler.decode_body(self, raw, object_length)
     
 

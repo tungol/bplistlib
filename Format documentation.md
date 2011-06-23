@@ -120,16 +120,17 @@ Float
 -----
 
 The object length to byte length conversion is the same as for integers. The 
-object length is always 3, corresponding to a byte length of 8. The 
-encoding is as a single-precision or a double-precision float, accordingly. 
-Byte order is reversed from IEEE 754.
+object length is 2 or 3, corresponding to a byte length of 4 or 8. The 
+encoding is as a big-endian, single-precision or a double-precision float,
+accordingly.
 
 
 Date
 ----
 
 Dates are stored as a float with a value of seconds since the epoch of 1 
-January 2001, 0:00:00 GMT. Encoding is the same as the encoding for floats.
+January 2001, 0:00:00 GMT. Encoding is the same as the encoding for floats,
+except that the object length is always 3, for a byte length of 8.
 
 
 Binary Data
