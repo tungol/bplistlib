@@ -265,7 +265,7 @@ class ArrayHandler(object):
     
     def decode_body(self, raw, object_length):
         """Decode the reference list into a flattened array."""
-        format_ = self.format * object_length
+        format_ = self.endian + self.format * object_length
         array = unpack(format_, raw)
         return list(array)
     

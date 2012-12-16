@@ -22,7 +22,7 @@ File Sections
 
 A binary plist file has four sections:
 
-1. The first 8 bytes are an identifier and always equal to 'bplist00'.
+1. The first 8 bytes are an identifier, equal to 'bplistXX' where XX is two digits. 'bplist00' and 'bplist01' are known, I don't know the differences.
 
 2. Second is all of the elements in the plist, encoded and concatenated.
 
@@ -49,7 +49,7 @@ The final 32 bytes of a binary plist have the following format:
      
   3. a 1 byte integer which is the number of bytes for an object reference 
      number. Valid values are 1 or 2. Reference numbers are encoded as 
-     unsigned, bug endian integers.
+     unsigned, big endian integers.
      
   4. 4 bytes of \x00 padding
   
