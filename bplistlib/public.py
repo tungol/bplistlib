@@ -2,7 +2,9 @@
 """This file contains the public functions for the module bplistlib."""
 
 
-from cStringIO import StringIO
+# JL
+#from cStringIO import StringIO
+from io import BytesIO
 import plistlib
 from .readwrite import read, write
 
@@ -20,7 +22,9 @@ def dump(obj, fp, binary=False):
 
 
 def dumps(obj, binary=False):
-    fp = StringIO()
+	# JL
+    #fp = StringIO()
+    fp = BytesIO()
     dump(obj, fp, binary)
     return fp.getvalue()
 
@@ -40,7 +44,9 @@ def load(fp, binary=None):
 
 
 def loads(s, binary=None):
-    return load(StringIO(s), binary)
+	# JL
+    #return load(StringIO(s), binary)
+    return load(BytesIO(s), binary)
 
 
 ################

@@ -33,7 +33,9 @@ class BooleanHandler(object):
     
     def encode_body(self, string, object_length):
         """Return an empty string."""
-        return ''
+		# JL
+        #return ''
+        return b''
     
     def decode_body(self, raw, object_length):
         """Return the decoded boolean value."""
@@ -142,7 +144,9 @@ class DataHander(object):
     def __init__(self):
         self.type_number = 4
         # this is ugly but maintains interop with plistlib.
-        self.types = type(Data(''))
+		# JL
+        #self.types = type(Data(''))
+        self.types = type(Data(''.encode()))
     
     def get_object_length(self, data):
         """Get the length of the data stored inside the Data object."""
@@ -193,7 +197,9 @@ class UnicodeStringHandler(StringHandler):
         StringHandler.__init__(self)
         self.type_number = 6
         self.encoding = 'utf_16_be'
-        self.types = unicode
+		# JL
+        #self.types = unicode
+        self.types = str
     
     def get_byte_length(self, object_length):
         """Return twice the object length."""
@@ -305,7 +311,9 @@ class DictionaryHandler(ArrayHandler):
         keys = ArrayHandler.encode_body(self, dictionary.keys(), object_length)
         values = ArrayHandler.encode_body(self, dictionary.values(),
                                           object_length)
-        return ''.join((keys, values))
+		# JL
+        #return ''.join((keys, values))
+        return b''.join((keys, values))
     
     def decode_body(self, raw, object_length):
         """
@@ -369,7 +377,9 @@ class ObjectHandler(object):
         object_length = handler.get_object_length(object_)
         first_byte = self.encode_first_byte(handler.type_number, object_length)
         body = handler.encode_body(object_, object_length)
-        return ''.join((first_byte, body))
+		# JL
+        #return ''.join((first_byte, body))
+        return b''.join((first_byte, body))
     
     def decode(self, file_object, handler=None):
         """Start reading in file_object, and decode the object found."""
@@ -416,7 +426,9 @@ class ObjectHandler(object):
         value = (type_number << 4) + length
         encoded = pack('B', value)
         if big:
-            return ''.join((encoded, real_length))
+			# JL
+            #return ''.join((encoded, real_length))
+            return b''.join((encoded, real_length))
         return encoded
     
     def decode_first_byte(self, file_object):
