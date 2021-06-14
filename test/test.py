@@ -6,7 +6,9 @@
 # may be missed.
 
 from datetime import datetime
-from plistlib import Data
+# JL
+#from plistlib import Data
+from bplistlib.classes import Data
 from os import remove
 import unittest
 import random

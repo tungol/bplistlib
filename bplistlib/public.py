@@ -13,16 +13,23 @@ from .readwrite import read, write
 ## API ##
 #########
 
+# readPlist(pathOrFile)
+# load(fp, *, fmt=None, use_builtin_types=True, dict_type=dict)
+# loads(value, *, fmt=None, use_builtin_types=True, dict_type=dict)
+# writePlist(value, pathOrFile)
+# dump(value, fp, *, fmt=FMT_XML, sort_keys=True, skipkeys=False)
+# dumps(value, *, fmt=FMT_XML, skipkeys=False, sort_keys=True)
 
 def dump(obj, fp, binary=False):
     if binary is True:
         write(obj, fp)
     else:
-        plistlib.writePlist(obj, fp)
+        # JL
+        plistlib.dump(obj, fp)
 
 
 def dumps(obj, binary=False):
-	# JL
+    # JL
     #fp = StringIO()
     fp = BytesIO()
     dump(obj, fp, binary)
@@ -39,12 +46,13 @@ def load(fp, binary=None):
     if binary is True:
         root_object = read(fp)
     elif binary is False:
-        root_object = plistlib.readPlist(fp)    
+        # JL
+        root_object = plistlib.load(fp)
     return root_object
 
 
 def loads(s, binary=None):
-	# JL
+    # JL
     #return load(StringIO(s), binary)
     return load(BytesIO(s), binary)
 
