@@ -51,7 +51,9 @@ def read_objects(file_object, offsets, reference_size, root):
 
 def write(root_object, file_object):
     """Write the root_object to file_object."""
-    file_object.write('bplist00')
+	# JL
+    #file_object.write('bplist00')
+    file_object.write('bplist00'.encode())
     offsets = write_objects(file_object, root_object)
     table_offset = write_table(file_object, offsets)
     write_trailer(file_object, offsets, table_offset)

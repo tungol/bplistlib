@@ -6,12 +6,68 @@ a binary plist file.
 
 from struct import pack, unpack
 from datetime import datetime
-from plistlib import Data
+# JL
+#from plistlib import Data
 from time import mktime
 from .functions import find_with_type, get_byte_width
 from .functions import flatten_object_list, unflatten_reference_list
 from .types import UID, Fill, FillType
+# JL
+import sys
 
+# JL
+# grafted in from python 3.8's plistlib, since it done
+# got deprecated in python 3.9.
+# Only the patchiest of the patch fixes here, since it
+# seems like I'm the only person using this.
+
+def _encode_base64(s, maxlinelength=76):
+    # copied from base64.encodebytes(), with added maxlinelength argument
+    maxbinsize = (maxlinelength//4)*3
+    pieces = []
+    for i in range(0, len(s), maxbinsize):
+        chunk = s[i : i + maxbinsize]
+        pieces.append(binascii.b2a_base64(chunk))
+    return b''.join(pieces)
+
+def _decode_base64(s):
+    if isinstance(s, str):
+        return binascii.a2b_base64(s.encode("utf-8"))
+
+    else:
+        return binascii.a2b_base64(s)
+
+class Data:
+    """
+    Wrapper for binary data.
+
+    This class is deprecated, use a bytes object instead.
+    """
+
+    def __init__(self, data):
+        if not isinstance(data, bytes):
+            raise TypeError("data must be as bytes")
+        self.data = data
+
+    @classmethod
+    def fromBase64(cls, data):
+        # base64.decodebytes just calls binascii.a2b_base64;
+        # it seems overkill to use both base64 and binascii.
+        return cls(_decode_base64(data))
+
+    def asBase64(self, maxlinelength=76):
+        return _encode_base64(self.data, maxlinelength)
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return self.data == other.data
+        elif isinstance(other, bytes):
+            return self.data == other
+        else:
+            return NotImplemented
+
+    def __repr__(self):
+        return "%s(%s)" % (self.__class__.__name__, repr(self.data))
 
 class BooleanHandler(object):
     """Handler for boolean types in a binary plist."""
@@ -33,7 +89,9 @@ class BooleanHandler(object):
     
     def encode_body(self, string, object_length):
         """Return an empty string."""
-        return ''
+        # JL
+        #return ''
+        return b''
     
     def decode_body(self, raw, object_length):
         """Return the decoded boolean value."""
@@ -142,7 +200,9 @@ class DataHander(object):
     def __init__(self):
         self.type_number = 4
         # this is ugly but maintains interop with plistlib.
-        self.types = type(Data(''))
+        # JL
+        #self.types = type(Data(''))
+        self.types = type(Data(''.encode()))
     
     def get_object_length(self, data):
         """Get the length of the data stored inside the Data object."""
@@ -193,7 +253,12 @@ class UnicodeStringHandler(StringHandler):
         StringHandler.__init__(self)
         self.type_number = 6
         self.encoding = 'utf_16_be'
-        self.types = unicode
+        # JL
+        #self.types = unicode
+        if sys.version_info.major < 3:
+            self.types = unicode
+        else:
+            self.types = str
     
     def get_byte_length(self, object_length):
         """Return twice the object length."""
@@ -305,7 +370,9 @@ class DictionaryHandler(ArrayHandler):
         keys = ArrayHandler.encode_body(self, dictionary.keys(), object_length)
         values = ArrayHandler.encode_body(self, dictionary.values(),
                                           object_length)
-        return ''.join((keys, values))
+        # JL
+        #return ''.join((keys, values))
+        return b''.join((keys, values))
     
     def decode_body(self, raw, object_length):
         """
@@ -369,7 +436,9 @@ class ObjectHandler(object):
         object_length = handler.get_object_length(object_)
         first_byte = self.encode_first_byte(handler.type_number, object_length)
         body = handler.encode_body(object_, object_length)
-        return ''.join((first_byte, body))
+        # JL
+        #return ''.join((first_byte, body))
+        return b''.join((first_byte, body))
     
     def decode(self, file_object, handler=None):
         """Start reading in file_object, and decode the object found."""
@@ -416,7 +485,9 @@ class ObjectHandler(object):
         value = (type_number << 4) + length
         encoded = pack('B', value)
         if big:
-            return ''.join((encoded, real_length))
+            # JL
+            #return ''.join((encoded, real_length))
+            return b''.join((encoded, real_length))
         return encoded
     
     def decode_first_byte(self, file_object):
